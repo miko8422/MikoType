@@ -20,7 +20,7 @@ import uvicorn
 from deskvision.core.config import CameraConfig
 from deskvision.video.capture import CaptureThread
 from deskvision.video.latest_frame import LatestFrameStore
-from deskvision.video.mac_camera import MacCameraSource
+from deskvision.video.windows_camera import WindowsCameraSource
 from tests.ui.synthetic import SyntheticFrameSource
 
 
@@ -39,8 +39,8 @@ class IsolatedRuntime:
         self.source_mode = source_mode
         self.startup_error: str | None = None
         if source_mode == "camera":
-            self.source = MacCameraSource(
-                CameraConfig(source_id="test_mac_main"),
+            self.source = WindowsCameraSource(
+                CameraConfig(source_id="test_windows_main"),
             )
         else:
             self.source = SyntheticFrameSource()

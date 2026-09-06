@@ -67,7 +67,7 @@
     manifestLink.setAttribute("aria-disabled", status.export_current ? "false" : "true");
     bundleLink.setAttribute("aria-disabled", status.windows_source_bundle_current ? "false" : "true");
     if (status.windows_source_bundle_current) {
-      setExportResult("ok", "Mac 资产与源码包已验证", "可重新生成或直接下载；Windows DLL 仍未构建");
+      setExportResult("ok", "资产与源码包已验证", "可重新生成或直接下载；Windows DLL 仍未构建");
     }
 
     for (const gate of status.gates || []) setGate(gate.id, gate.status, gate.note || gate.label);
@@ -157,15 +157,15 @@
       const payload = await response.json();
       if (!response.ok) throw new Error(payload.detail || `HTTP ${response.status}`);
       const files = payload.file_count ?? payload.outputs?.length ?? "—";
-      setExportResult("ok", "Mac 资产与源码包已验证", `${files} files · 仍未构建 Windows DLL`);
+      setExportResult("ok", "资产与源码包已验证", `${files} files · 仍未构建 Windows DLL`);
       manifestLink.setAttribute("aria-disabled", "false");
       bundleLink.setAttribute("aria-disabled", "false");
-      setGate("mac_asset_validated", "passed", "已验证");
+      setGate("asset_bundle_validated", "passed", "已验证");
       setGate("windows_source_bundle_validated", "passed", "源码就绪");
     } catch (error) {
       manifestLink.setAttribute("aria-disabled", "true");
       bundleLink.setAttribute("aria-disabled", "true");
-      setGate("mac_asset_validated", "ready", "需重新验证");
+      setGate("asset_bundle_validated", "ready", "需重新验证");
       setGate("windows_source_bundle_validated", "ready", "待生成");
       setExportResult("error", "生成失败", String(error.message || error));
     } finally {

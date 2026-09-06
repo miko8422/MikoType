@@ -22,9 +22,9 @@ calibration, and applies a validated bundle to the configured production paths
 only after the user chooses Apply. The active process must then be restarted so
 one runtime never mixes old state with a new calibration.
 
-```bash
-.testenv/bin/python -m deskvision.main setup \
-  --config configs/dev.yaml \
+```powershell
+.\.venv\Scripts\mikotype.exe setup `
+  --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
 

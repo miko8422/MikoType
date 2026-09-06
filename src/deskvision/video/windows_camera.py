@@ -1,4 +1,4 @@
-"""OpenCV/AVFoundation camera source for the Mac video layer."""
+"""OpenCV camera source for the Windows V0.1 video layer."""
 
 from __future__ import annotations
 
@@ -31,14 +31,20 @@ class CameraCloseError(CameraSourceError):
     """The camera backend failed while releasing its handle."""
 
 
-class MacCameraSource:
-    """Read one Mac camera through OpenCV's AVFoundation backend.
+class WindowsCameraSource:
+    """Read one Windows camera through OpenCV.
 
-    cv2 is imported only when open is called. capture_factory and cv2_module
-    are test seams; production code uses cv2.VideoCapture. rotate_degrees and
-    mirror remain preprocessing concerns and are not silently applied to
-    algorithm coordinates here.
+    ``any`` lets OpenCV select the backend; ``msmf`` and ``dshow`` are exposed
+    for Windows hardware tuning. Test seams keep unit tests hardware-free.
+    Rotation and mirroring remain preprocessing/view concerns so algorithm
+    coordinates are never changed silently.
     """
+
+    _BACKEND_FLAGS = {
+        "any": "CAP_ANY",
+        "msmf": "CAP_MSMF",
+        "dshow": "CAP_DSHOW",
+    }
 
     def __init__(
         self,
@@ -64,19 +70,21 @@ class MacCameraSource:
             import cv2  # type: ignore[import-not-found]
         except ModuleNotFoundError as exc:
             raise CameraOpenError(
-                "opencv-python is required to open the Mac camera; "
+                "opencv-contrib-python is required to open the Windows camera; "
                 "install the project dependencies first"
             ) from exc
         self._cv2_module = cv2
         return cv2
 
     def _backend_flag(self, cv2: Any) -> int:
-        if self.config.backend.lower() == "avfoundation":
-            flag = getattr(cv2, "CAP_AVFOUNDATION", None)
-            if flag is None:
-                raise CameraOpenError("OpenCV was built without AVFoundation support")
-            return int(flag)
-        return int(getattr(cv2, "CAP_ANY", 0))
+        backend = self.config.backend.lower()
+        attribute = self._BACKEND_FLAGS[backend]
+        flag = getattr(cv2, attribute, None)
+        if flag is None:
+            raise CameraOpenError(
+                f"OpenCV was built without the requested Windows backend {backend!r}"
+            )
+        return int(flag)
 
     def open(self) -> None:
         with self._lock:
@@ -140,16 +148,11 @@ class MacCameraSource:
             return None
 
         shape = getattr(image, "shape", None)
-        if shape is None:
+        if shape is None or len(tuple(shape)) != 3:
             message = "camera returned an image without a 3-dimensional BGR shape"
             self._set_error(message)
             raise CameraReadError(message)
-        normalized_shape = tuple(shape)
-        if len(normalized_shape) != 3:
-            message = "camera returned an image without a 3-dimensional BGR shape"
-            self._set_error(message)
-            raise CameraReadError(message)
-        height, width = int(normalized_shape[0]), int(normalized_shape[1])
+        height, width = int(shape[0]), int(shape[1])
         try:
             frame = FramePacket(
                 source_id=self.config.source_id,
@@ -210,3 +213,13 @@ class MacCameraSource:
     @staticmethod
     def _release_capture(capture: Any) -> None:
         capture.release()
+
+
+__all__ = [
+    "CameraCloseError",
+    "CameraNotOpenError",
+    "CameraOpenError",
+    "CameraReadError",
+    "CameraSourceError",
+    "WindowsCameraSource",
+]

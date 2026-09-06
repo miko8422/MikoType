@@ -339,7 +339,7 @@ def build_windows_source_bundle(
         "dynamic_scene_state_bridge_included": False,
         "input_fingerprint": input_fingerprint,
         "gates": {
-            "mac_asset_validated": True,
+            "asset_bundle_validated": True,
             "windows_source_bundle_validated": True,
             "windows_driver_built": False,
             "steamvr_driver_loaded": False,

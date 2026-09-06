@@ -13,7 +13,12 @@ from deskvision.core.config import ArtifactConfig, load_config
 from deskvision.core.models import FramePacket
 from deskvision.perception.hand_base import HandTrackingResult
 from deskvision.calibration.artifacts import load_keyboard_calibration_artifacts
-from deskvision.runtime import RuntimeBuildError, build_runtime, ensure_keyboard_model
+from deskvision.runtime import (
+    RuntimeBuildError,
+    build_runtime,
+    ensure_keyboard_model,
+    validate_runtime_config,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -119,7 +124,7 @@ class _NoMarkers:
 
 
 def test_runtime_composes_real_artifacts_and_latest_frame_workers(tmp_path: Path) -> None:
-    config = load_config(ROOT / "configs/dev.yaml")
+    config = load_config(ROOT / "configs/windows.yaml")
     artifacts = replace(
         config.artifacts,
         model_glb=tmp_path / "keyboard.glb",
@@ -163,7 +168,7 @@ def test_runtime_start_failure_closes_pipeline_and_source(tmp_path: Path) -> Non
         def open(self) -> None:
             raise RuntimeError("camera unavailable")
 
-    config = load_config(ROOT / "configs/dev.yaml")
+    config = load_config(ROOT / "configs/windows.yaml")
     config = replace(
         config,
         artifacts=replace(
@@ -192,7 +197,7 @@ def test_runtime_start_failure_closes_pipeline_and_source(tmp_path: Path) -> Non
 def test_runtime_stop_timeout_defers_pipeline_close_until_worker_exits(
     tmp_path: Path,
 ) -> None:
-    config = load_config(ROOT / "configs/dev.yaml")
+    config = load_config(ROOT / "configs/windows.yaml")
     config = replace(
         config,
         artifacts=replace(
@@ -240,7 +245,7 @@ def test_runtime_stop_timeout_defers_pipeline_close_until_worker_exits(
 def test_runtime_retries_failed_pipeline_close_without_allowing_restart(
     tmp_path: Path,
 ) -> None:
-    config = load_config(ROOT / "configs/dev.yaml")
+    config = load_config(ROOT / "configs/windows.yaml")
     config = replace(
         config,
         artifacts=replace(
@@ -271,6 +276,83 @@ def test_runtime_retries_failed_pipeline_close_without_allowing_restart(
     assert runtime.status == "closed"
     assert hands.closed is True
     assert hands.close_calls == 2
+
+
+def test_v01_runtime_rejects_experimental_remote_inference() -> None:
+    config = load_config(ROOT / "configs/windows.yaml")
+    config = replace(
+        config,
+        remote_inference=replace(
+            config.remote_inference,
+            enabled=True,
+            endpoint="wss://inference.example.test/ws/experimental/inference",
+        ),
+    )
+
+    with pytest.raises(RuntimeBuildError, match="not active in V0.1"):
+        build_runtime(
+            config,
+            source=_Source(),
+            hand_tracker=_NoHands(),
+            marker_detector=_NoMarkers(),
+        )
+
+
+def test_v01_runtime_rejects_non_loopback_fastapi_host() -> None:
+    config = load_config(ROOT / "configs/windows.yaml")
+    config = replace(config, app=replace(config.app, host="0.0.0.0"))
+
+    with pytest.raises(RuntimeBuildError, match="loopback"):
+        build_runtime(
+            config,
+            source=_Source(),
+            hand_tracker=_NoHands(),
+            marker_detector=_NoMarkers(),
+        )
+
+
+@pytest.mark.parametrize(
+    ("section", "field", "value", "message"),
+    (
+        ("pipeline", "perception_enabled", False, "perception_enabled"),
+        ("hand_tracking", "enabled", False, "hand and keyboard"),
+        ("keyboard_tracking", "enabled", False, "hand and keyboard"),
+        ("debug_ui", "enabled", False, "local FastAPI"),
+        ("debug_ui", "websocket_state", False, "websocket_state"),
+    ),
+)
+def test_shared_runtime_config_validation_rejects_non_runnable_settings(
+    section: str,
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    config = load_config(ROOT / "configs/windows.yaml")
+    config = replace(
+        config,
+        **{
+            section: replace(getattr(config, section), **{field: value}),
+        },
+    )
+
+    with pytest.raises(RuntimeBuildError, match=message):
+        validate_runtime_config(config)
+
+
+def test_shared_runtime_config_validation_rejects_missing_hand_model(
+    tmp_path: Path,
+) -> None:
+    config = load_config(ROOT / "configs/windows.yaml")
+    config = replace(
+        config,
+        hand_tracking=replace(
+            config.hand_tracking,
+            model_path=tmp_path / "missing.task",
+        ),
+    )
+
+    with pytest.raises(RuntimeBuildError, match="Landmarker asset is missing"):
+        validate_runtime_config(config)
 
 
 def test_model_check_mode_is_read_only_and_rejects_missing_output(

@@ -8,14 +8,14 @@ import time
 from deskvision.core.config import CameraConfig
 from deskvision.video.capture import CaptureStartError, CaptureThread
 from deskvision.video.latest_frame import LatestFrameStore
-from deskvision.video.mac_camera import CameraSourceError, MacCameraSource
+from deskvision.video.windows_camera import CameraSourceError, WindowsCameraSource
 
 
 def run_smoke_test(seconds: float = 5.0, device_index: int = 0) -> int:
     """Open a camera, capture for a bounded interval, and print metrics."""
     if seconds <= 0:
         raise ValueError("seconds must be positive")
-    source = MacCameraSource(CameraConfig(device_index=device_index))
+    source = WindowsCameraSource(CameraConfig(device_index=device_index))
     store = LatestFrameStore()
     capture = CaptureThread(source, store)
     try:

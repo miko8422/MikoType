@@ -1,9 +1,9 @@
-"""Unit tests for MacCameraSource using an injected OpenCV-like backend."""
+"""Unit tests for WindowsCameraSource using an injected OpenCV-like backend."""
 
 import pytest
 
 from deskvision.core.config import CameraConfig
-from deskvision.video.mac_camera import CameraOpenError, MacCameraSource
+from deskvision.video.windows_camera import CameraOpenError, WindowsCameraSource
 
 
 pytestmark = pytest.mark.unit
@@ -14,7 +14,11 @@ class FakeImage:
 
 
 class FakeCapture:
-    def __init__(self, opened: bool = True, reads: list[tuple[bool, object | None]] | None = None):
+    def __init__(
+        self,
+        opened: bool = True,
+        reads: list[tuple[bool, object | None]] | None = None,
+    ) -> None:
         self.opened = opened
         self.released = False
         self.settings: list[tuple[int, int]] = []
@@ -37,8 +41,9 @@ class FakeCapture:
 
 
 class FakeCV2:
-    CAP_AVFOUNDATION = 120
     CAP_ANY = 0
+    CAP_MSMF = 1400
+    CAP_DSHOW = 700
     CAP_PROP_FRAME_WIDTH = 3
     CAP_PROP_FRAME_HEIGHT = 4
     CAP_PROP_FPS = 5
@@ -49,13 +54,13 @@ def test_open_read_close_and_monotonic_frame_ids() -> None:
 
     def factory(device_index: int, backend: int) -> FakeCapture:
         assert device_index == 0
-        assert backend == FakeCV2.CAP_AVFOUNDATION
+        assert backend == FakeCV2.CAP_MSMF
         capture = FakeCapture()
         captures.append(capture)
         return capture
 
-    source = MacCameraSource(
-        CameraConfig(width=640, height=480, fps=30),
+    source = WindowsCameraSource(
+        CameraConfig(backend="msmf", width=640, height=480, fps=30),
         capture_factory=factory,
         cv2_module=FakeCV2(),
         clock_ns=iter([100, 200]).__next__,
@@ -77,9 +82,31 @@ def test_open_read_close_and_monotonic_frame_ids() -> None:
     assert captures[0].released
 
 
+@pytest.mark.parametrize(
+    ("backend", "expected"),
+    (("any", FakeCV2.CAP_ANY), ("msmf", FakeCV2.CAP_MSMF), ("dshow", FakeCV2.CAP_DSHOW)),
+)
+def test_windows_backend_mapping(backend: str, expected: int) -> None:
+    observed: list[int] = []
+
+    def factory(_device_index: int, flag: int) -> FakeCapture:
+        observed.append(flag)
+        return FakeCapture()
+
+    source = WindowsCameraSource(
+        CameraConfig(backend=backend),
+        capture_factory=factory,
+        cv2_module=FakeCV2(),
+    )
+    source.open()
+    source.close()
+
+    assert observed == [expected]
+
+
 def test_failed_open_is_explicit_and_releases_handle() -> None:
     capture = FakeCapture(opened=False)
-    source = MacCameraSource(
+    source = WindowsCameraSource(
         capture_factory=lambda _device, _backend: capture,
         cv2_module=FakeCV2(),
     )
@@ -91,7 +118,7 @@ def test_failed_open_is_explicit_and_releases_handle() -> None:
 
 def test_empty_read_returns_none_and_records_error() -> None:
     capture = FakeCapture(reads=[(False, None)])
-    source = MacCameraSource(
+    source = WindowsCameraSource(
         capture_factory=lambda _device, _backend: capture,
         cv2_module=FakeCV2(),
     )
@@ -101,10 +128,11 @@ def test_empty_read_returns_none_and_records_error() -> None:
 
 
 def test_missing_backend_is_explicit() -> None:
-    source = MacCameraSource(
+    source = WindowsCameraSource(
+        CameraConfig(backend="msmf"),
         capture_factory=lambda _device, _backend: FakeCapture(),
         cv2_module=object(),
     )
     with pytest.raises(CameraOpenError):
         source.open()
-    assert "AVFoundation" in (source.last_error or "")
+    assert "msmf" in (source.last_error or "")

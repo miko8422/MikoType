@@ -3,8 +3,24 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import re
 from pathlib import Path
 from typing import Any, Mapping, TypeVar
+from urllib.parse import urlsplit
+
+
+@dataclass(frozen=True, slots=True)
+class DeploymentConfig:
+    """V0.1's supported production deployment topology."""
+
+    target_os: str = "windows"
+    topology: str = "single_host"
+
+    def __post_init__(self) -> None:
+        if self.target_os != "windows":
+            raise ValueError("V0.1 production target_os must be 'windows'")
+        if self.topology != "single_host":
+            raise ValueError("V0.1 production topology must be 'single_host'")
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,8 +38,8 @@ class AppConfig:
 
 @dataclass(frozen=True, slots=True)
 class CameraConfig:
-    source_id: str = "mac_main"
-    backend: str = "avfoundation"
+    source_id: str = "windows_main"
+    backend: str = "msmf"
     device_index: int = 0
     width: int = 1280
     height: int = 720
@@ -36,8 +52,8 @@ class CameraConfig:
             raise ValueError("camera source_id must be a non-empty string")
         if not isinstance(self.backend, str):
             raise TypeError("camera backend must be a string")
-        if self.backend.lower() not in {"avfoundation", "any"}:
-            raise ValueError("camera backend must be 'avfoundation' or 'any'")
+        if self.backend.lower() not in {"any", "msmf", "dshow"}:
+            raise ValueError("camera backend must be 'any', 'msmf', or 'dshow'")
         if self.device_index < 0:
             raise ValueError("camera device_index must be non-negative")
         if self.width <= 0 or self.height <= 0:
@@ -226,7 +242,72 @@ class DiagnosticsConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class RemoteInferenceConfig:
+    """Disabled-by-default boundary for post-V0.1 distributed inference.
+
+    This configuration reserves a secure network contract. The V0.1 runtime
+    deliberately refuses to activate it; camera and inference stay together
+    on the Windows host.
+    """
+
+    enabled: bool = False
+    transport: str = "websocket"
+    endpoint: str | None = None
+    token_env: str = "MIKOTYPE_REMOTE_INFERENCE_TOKEN"
+    require_tls: bool = True
+    max_frame_bytes: int = 4 * 1024 * 1024
+    max_in_flight: int = 1
+    response_timeout_ms: int = 1000
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.enabled, bool):
+            raise TypeError("remote_inference.enabled must be boolean")
+        if self.transport != "websocket":
+            raise ValueError("remote_inference.transport must be 'websocket'")
+        if not isinstance(self.require_tls, bool):
+            raise TypeError("remote_inference.require_tls must be boolean")
+        if not self.require_tls:
+            raise ValueError(
+                "remote_inference.require_tls must remain true; only loopback "
+                "development endpoints may use ws://"
+            )
+        if not re.fullmatch(r"[A-Z][A-Z0-9_]*", self.token_env):
+            raise ValueError(
+                "remote_inference.token_env must name an uppercase environment variable"
+            )
+        if not 0 < self.max_frame_bytes <= 4 * 1024 * 1024:
+            raise ValueError(
+                "remote_inference.max_frame_bytes must be between 1 and 4194304"
+            )
+        if self.max_in_flight != 1:
+            raise ValueError(
+                "experimental remote inference requires one latest-only frame in flight"
+            )
+        if self.response_timeout_ms <= 0:
+            raise ValueError("remote_inference.response_timeout_ms must be positive")
+        if self.endpoint is None:
+            if self.enabled:
+                raise ValueError(
+                    "remote_inference.endpoint is required when remote inference is enabled"
+                )
+            return
+        if not isinstance(self.endpoint, str) or not self.endpoint.strip():
+            raise ValueError("remote_inference.endpoint must be a non-empty URL or null")
+        parsed = urlsplit(self.endpoint)
+        if parsed.scheme not in {"ws", "wss"} or not parsed.hostname:
+            raise ValueError("remote_inference.endpoint must be a ws:// or wss:// URL")
+        if parsed.username or parsed.password or parsed.query or parsed.fragment:
+            raise ValueError(
+                "remote_inference.endpoint cannot contain credentials, query, or fragment"
+            )
+        is_loopback = parsed.hostname in {"localhost", "127.0.0.1", "::1"}
+        if self.require_tls and not is_loopback and parsed.scheme != "wss":
+            raise ValueError("non-loopback remote inference requires wss://")
+
+
+@dataclass(frozen=True, slots=True)
 class DeskVisionConfig:
+    deployment: DeploymentConfig = field(default_factory=DeploymentConfig)
     app: AppConfig = field(default_factory=AppConfig)
     camera: CameraConfig = field(default_factory=CameraConfig)
     stream: StreamConfig = field(default_factory=StreamConfig)
@@ -239,6 +320,9 @@ class DeskVisionConfig:
     pipeline: PipelineConfig = field(default_factory=PipelineConfig)
     debug_ui: DebugUIConfig = field(default_factory=DebugUIConfig)
     diagnostics: DiagnosticsConfig = field(default_factory=DiagnosticsConfig)
+    remote_inference: RemoteInferenceConfig = field(
+        default_factory=RemoteInferenceConfig
+    )
 
 
 T = TypeVar("T")
@@ -295,6 +379,7 @@ def load_config(path: str | Path) -> DeskVisionConfig:
         hand_raw["model_path"] = candidate.resolve()
 
     return DeskVisionConfig(
+        deployment=_construct(DeploymentConfig, raw, "deployment"),
         app=_construct(AppConfig, raw, "app"),
         camera=_construct(CameraConfig, raw, "camera"),
         stream=_construct(StreamConfig, raw, "stream"),
@@ -307,6 +392,9 @@ def load_config(path: str | Path) -> DeskVisionConfig:
         pipeline=_construct(PipelineConfig, raw, "pipeline"),
         debug_ui=_construct(DebugUIConfig, raw, "debug_ui"),
         diagnostics=_construct(DiagnosticsConfig, raw, "diagnostics"),
+        remote_inference=_construct(
+            RemoteInferenceConfig, raw, "remote_inference"
+        ),
     )
 
 
@@ -315,12 +403,14 @@ __all__ = [
     "ArtifactConfig",
     "CameraConfig",
     "DebugUIConfig",
+    "DeploymentConfig",
     "DeskVisionConfig",
     "DiagnosticsConfig",
     "HandTrackingConfig",
     "InteractionConfig",
     "KeyboardTrackingConfig",
     "PipelineConfig",
+    "RemoteInferenceConfig",
     "StreamConfig",
     "load_config",
 ]

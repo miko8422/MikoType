@@ -15,7 +15,7 @@ pytestmark = pytest.mark.unit
 def test_empty_state_matches_required_top_level_shape() -> None:
     state = SceneState(
         schema_version=SCENE_STATE_SCHEMA_VERSION,
-        source_id="mac_main",
+        source_id="windows_main",
         source_frame_id=0,
         captured_at_ns=0,
     ).to_dict()

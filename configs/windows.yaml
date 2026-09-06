@@ -1,3 +1,7 @@
+deployment:
+  target_os: "windows"
+  topology: "single_host"
+
 app:
   host: "127.0.0.1"
   port: 8765
@@ -5,7 +9,9 @@ app:
 
 camera:
   source_id: "windows_main"
-  backend: "any"
+  # Media Foundation is the V0.1 default. Try "dshow", then "any" only if
+  # the selected camera cannot open reliably on the target PC.
+  backend: "msmf"
   device_index: 0
   width: 1280
   height: 720
@@ -64,3 +70,15 @@ debug_ui:
 diagnostics:
   stale_frame_threshold_ms: 500
   metrics_interval_ms: 1000
+
+# Reserved post-V0.1 boundary. The production runtime refuses to enable this
+# block so camera, inference, FastAPI, and VR state stay on this Windows host.
+remote_inference:
+  enabled: false
+  transport: "websocket"
+  endpoint: null
+  token_env: "MIKOTYPE_REMOTE_INFERENCE_TOKEN"
+  require_tls: true
+  max_frame_bytes: 4194304
+  max_in_flight: 1
+  response_timeout_ms: 1000

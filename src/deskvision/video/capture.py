@@ -99,7 +99,7 @@ class CaptureThread:
                 raise
         elif thread is not current_thread():
             # Let the capture thread leave read() and release the backend in
-            # its own finally block. This avoids racing AVFoundation release
+            # its own finally block. This avoids racing VideoCapture release
             # against an in-flight VideoCapture.read().
             thread.join(timeout=timeout_s)
             if thread.is_alive():

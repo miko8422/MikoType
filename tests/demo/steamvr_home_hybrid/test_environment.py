@@ -10,7 +10,7 @@ from demo.steamvr_home_hybrid.environment import probe_environment
 pytestmark = pytest.mark.unit
 
 
-def test_mac_probe_reports_only_portable_offline_capabilities(tmp_path: Path) -> None:
+def test_non_windows_probe_reports_only_portable_offline_capabilities(tmp_path: Path) -> None:
     fake_runtime = tmp_path / "SteamVR" / "bin" / "win64"
     fake_runtime.mkdir(parents=True)
     (fake_runtime / "vrpathreg.exe").touch()

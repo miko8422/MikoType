@@ -4,38 +4,32 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
-import ipaddress
 import json
 from pathlib import Path
 import sys
-import time
 
 import uvicorn
 
 from deskvision.calibration.artifacts import load_keyboard_calibration_artifacts
 from deskvision.calibration.control_plane import KeyboardSetupController, SetupWorkspace
 from deskvision.core.config import load_config
+from deskvision.core.platform import is_loopback_host, require_windows_runtime
 from deskvision.keyboard.bundle import KeyboardBundlePaths, build_keyboard_bundle
-from deskvision.runtime import build_runtime, ensure_keyboard_model
+from deskvision.runtime import (
+    build_runtime,
+    ensure_keyboard_model,
+    validate_runtime_config,
+)
 from deskvision.web.setup import create_setup_router
 
 
-DEFAULT_CONFIG = Path("configs/dev.yaml")
-
-
-def _is_loopback_host(host: str) -> bool:
-    if host.lower() == "localhost":
-        return True
-    try:
-        return ipaddress.ip_address(host).is_loopback
-    except ValueError:
-        return False
+DEFAULT_CONFIG = Path("configs/windows.yaml")
 
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="deskvision",
-        description="Mac vision node for adaptive physical-keyboard mapping",
+        prog="mikotype",
+        description="Windows-local vision runtime for adaptive keyboard mapping",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
@@ -91,6 +85,7 @@ def _parser() -> argparse.ArgumentParser:
 
 def _check(config_path: Path) -> int:
     config = load_config(config_path)
+    validate_runtime_config(config)
     artifacts = load_keyboard_calibration_artifacts(
         layout_path=config.artifacts.layout_profile,
         anchor_path=config.artifacts.anchor_reference,
@@ -106,6 +101,11 @@ def _check(config_path: Path) -> int:
         json.dumps(
             {
                 "status": "ready",
+                "deployment": {
+                    "target_os": config.deployment.target_os,
+                    "topology": config.deployment.topology,
+                    "remote_inference_enabled": config.remote_inference.enabled,
+                },
                 "layout_id": artifacts.layout.layout_id,
                 "key_count": len(artifacts.layout.keys),
                 "contact_samples": sum(
@@ -131,6 +131,7 @@ def _check(config_path: Path) -> int:
 
 
 def _run(args: argparse.Namespace) -> int:
+    require_windows_runtime()
     config = load_config(args.config)
     if args.acknowledge_mediapipe_metrics:
         config = replace(
@@ -148,34 +149,32 @@ def _run(args: argparse.Namespace) -> int:
             port=args.port or app_config.port,
         )
         config = replace(config, app=app_config)
+    if not is_loopback_host(app_config.host):
+        raise RuntimeError(
+            "MikoType V0.1 is a same-host Windows service and may bind only "
+            "to a loopback host"
+        )
 
     runtime = build_runtime(config)
     runtime.start()
     try:
-        if config.debug_ui.enabled:
-            print(
-                f"VR Desk Vision running at http://{app_config.host}:{app_config.port} "
-                f"with {len(runtime.artifacts.layout.keys)} adaptive keys"
-            )
-            uvicorn.run(
-                runtime.web_app,
-                host=app_config.host,
-                port=app_config.port,
-                log_level=app_config.log_level.lower(),
-            )
-        else:
-            print(
-                "VR Desk Vision running headless; press Ctrl-C to stop "
-                f"({len(runtime.artifacts.layout.keys)} adaptive keys)"
-            )
-            while runtime.is_running:
-                time.sleep(0.25)
+        print(
+            f"MikoType running at http://{app_config.host}:{app_config.port} "
+            f"with {len(runtime.artifacts.layout.keys)} adaptive keys"
+        )
+        uvicorn.run(
+            runtime.web_app,
+            host=app_config.host,
+            port=app_config.port,
+            log_level=app_config.log_level.lower(),
+        )
     finally:
         runtime.stop()
     return 0
 
 
 def _setup(args: argparse.Namespace) -> int:
+    require_windows_runtime()
     config = load_config(args.config)
     if args.acknowledge_mediapipe_metrics:
         config = replace(
@@ -187,7 +186,7 @@ def _setup(args: argparse.Namespace) -> int:
         host=args.host or config.app.host,
         port=args.port or config.app.port,
     )
-    if not _is_loopback_host(app_config.host):
+    if not is_loopback_host(app_config.host):
         raise RuntimeError(
             "keyboard setup mutates local calibration and may bind only to a "
             "loopback host"

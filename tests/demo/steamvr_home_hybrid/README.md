@@ -1,7 +1,7 @@
 # SteamVR Home Hybrid Demo Tests
 
-These tests validate the isolated Mac feasibility work and Windows source
-handoff without opening a camera, launching Steam/SteamVR, registering a
+These tests validate the isolated asset work and Windows source handoff
+without opening a camera, launching Steam/SteamVR, registering a
 Driver, contacting a network service, or writing production data.
 
 ```bash
@@ -10,7 +10,7 @@ Driver, contacting a network service, or writing production data.
 
 Coverage is split by boundary:
 
-- `test_environment.py` injects Mac and Windows fixtures into the read-only
+- `test_environment.py` injects non-Windows and Windows fixtures into the read-only
   capability probe. A pretend platform never executes a platform tool.
 - `test_asset_export.py` validates the real production GLB/Manifest pair,
   deterministic OBJ/MTL/PNG output, UV/normal/index rules, axis policy, bounds,
@@ -21,11 +21,11 @@ Coverage is split by boundary:
 - `test_windows_bundle.py` checks Driver/Overlay source boundaries, lowercase
   package naming, manifest/resource paths, fixed demo-pose disclosure, and
   exact-path registration/unregistration scripts. It does not compile a
-  Windows DLL on the Mac.
+  Windows DLL on a non-Windows test host.
 - `test_app.py` checks the loopback API, production asset serving, isolated
   export/ZIP endpoints, and the no-upload/no-false-verification WebUI wording.
 
-An optional manual C++ syntax-only check may use a local OpenVR checkout on the
-Mac, but it is not a SteamVR runtime acceptance test. All actual DLL ABI,
+An optional manual C++ syntax-only check may use a local OpenVR checkout on a
+development host, but it is not a SteamVR runtime acceptance test. All actual DLL ABI,
 `vrserver`, compositor, Home visibility, scale/orientation, and headset-space
 alignment checks remain manual Windows + HMD gates.

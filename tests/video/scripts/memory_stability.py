@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
-import resource
+import os
 import statistics
 import sys
 import time
@@ -12,13 +12,45 @@ import time
 from deskvision.core.config import CameraConfig
 from deskvision.video.capture import CaptureStartError, CaptureThread
 from deskvision.video.latest_frame import LatestFrameStore
-from deskvision.video.mac_camera import CameraSourceError, MacCameraSource
+from deskvision.video.windows_camera import CameraSourceError, WindowsCameraSource
 
 
-def _peak_rss_kb() -> float:
-    """Return this process's peak resident memory in KiB."""
+def _resident_memory_kb() -> float:
+    """Return resident process memory in KiB without a platform dependency."""
+
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        class ProcessMemoryCounters(ctypes.Structure):
+            _fields_ = [
+                ("cb", wintypes.DWORD),
+                ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t),
+                ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t),
+                ("PeakPagefileUsage", ctypes.c_size_t),
+            ]
+
+        counters = ProcessMemoryCounters()
+        counters.cb = ctypes.sizeof(counters)
+        process = ctypes.windll.kernel32.GetCurrentProcess()
+        ok = ctypes.windll.psapi.GetProcessMemoryInfo(
+            process,
+            ctypes.byref(counters),
+            counters.cb,
+        )
+        if not ok:
+            raise OSError("GetProcessMemoryInfo failed")
+        return float(counters.WorkingSetSize) / 1024.0
+
+    import resource
+
     peak = float(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
-    # macOS reports bytes; Linux and most BSD environments report KiB.
     return peak / 1024.0 if sys.platform == "darwin" else peak
 
 
@@ -52,7 +84,7 @@ def run_memory_stability(
     if max_growth_mb < 0 or max_slope_mb_per_min < 0:
         raise ValueError("memory thresholds must be non-negative")
 
-    source = MacCameraSource(CameraConfig(device_index=device_index))
+    source = WindowsCameraSource(CameraConfig(device_index=device_index))
     store = LatestFrameStore()
     capture = CaptureThread(source, store)
     try:
@@ -78,7 +110,7 @@ def run_memory_stability(
             elapsed_s = now - started
             if now >= next_sample:
                 if elapsed_s >= warmup_s:
-                    samples.append((elapsed_s / 60.0, _peak_rss_kb()))
+                    samples.append((elapsed_s / 60.0, _resident_memory_kb()))
                 next_sample = now + sample_interval_s
             if now >= next_report:
                 metrics = capture.metrics()
@@ -87,7 +119,7 @@ def run_memory_stability(
                         {
                             "status": "running",
                             "elapsed_s": round(elapsed_s, 1),
-                            "peak_rss_mb": round(_peak_rss_kb() / 1024.0, 3),
+                            "rss_mb": round(_resident_memory_kb() / 1024.0, 3),
                             "frames_captured": metrics.frames_captured,
                             "capture_fps": round(metrics.capture_fps, 3),
                             "read_failures": metrics.read_failures,

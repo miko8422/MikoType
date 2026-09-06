@@ -27,10 +27,12 @@ separate video-only window. Multiple viewers reuse one encoded JPEG per frame
 inside the isolated process, so adding an observer does not multiply the JPEG
 encoding cost.
 
-To exercise the real Mac camera through the isolated process, run:
+To exercise a real Windows camera through the isolated process, run in
+PowerShell:
 
-    PYTHONPATH=src:. .testenv/bin/python -m tests.ui.app --source camera --host 127.0.0.1 --port 8766
+    $env:PYTHONPATH = "$PWD\src;$PWD"
+    .\.venv\Scripts\python.exe -m tests.ui.app --source camera --host 127.0.0.1 --port 8766
 
-The Python/Terminal process must have macOS Camera permission for camera mode.
+Windows must allow desktop applications to access the camera.
 It is safe to run alongside the production package because it uses a separate
 process, port, configuration, source selection, and dependency environment.

@@ -1,6 +1,7 @@
 # Contracts
 
-This directory contains versioned, transport-safe contracts shared by the Mac vision node, browser presenter, and future Windows VR client.
+This directory contains versioned, transport-safe contracts for MikoType's
+same-host Windows vision, browser, and future SteamVR components.
 
 `scene_state.schema.json` describes SceneState schema version `0.2`. Raw image
 arrays belong only to in-process `FramePacket` objects and must never be
@@ -16,3 +17,11 @@ ranked physical-key candidates, aggregated `key_highlights`, and latency/health
 diagnostics. `hovered_keys` is a temporary compatibility alias containing the
 same highlight records. Candidate semantics are explicitly
 `likely-contact-not-mechanical-keypress`.
+
+`remote_inference.schema.json` reserves the disabled experimental boundary for
+a possible Windows-camera-to-remote-inference route. A JSON `frame_header` is
+followed by one bounded binary JPEG, and the returned `scene_state` envelope
+must match the same session, sequence, source, and frame ID. Authentication is
+transport metadata, never a JSON field or URL query. The V0.1 runtime does not
+register the reserved `/ws/experimental/inference` route or activate the
+`mikotype.remote-inference.v0.1` WebSocket subprotocol.

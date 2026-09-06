@@ -9,7 +9,7 @@ import time
 from fastapi.testclient import TestClient
 import pytest
 
-from deskvision.video.mac_camera import MacCameraSource
+from deskvision.video.windows_camera import WindowsCameraSource
 from tests.ui.app import IsolatedRuntime, create_app
 
 
@@ -26,7 +26,7 @@ def client():
 def test_camera_mode_is_constructed_only_in_isolated_runtime() -> None:
     runtime = IsolatedRuntime("camera")
     assert runtime.source_mode == "camera"
-    assert isinstance(runtime.source, MacCameraSource)
+    assert isinstance(runtime.source, WindowsCameraSource)
 
 
 def test_metrics_and_frame_endpoints_use_synthetic_runtime(client: TestClient) -> None:

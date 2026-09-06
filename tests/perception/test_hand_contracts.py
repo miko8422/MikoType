@@ -29,7 +29,7 @@ def test_hand_result_is_frame_correlated_and_scene_state_ready() -> None:
     )
     result = HandTrackingResult(
         model_id="mediapipe_hands",
-        source_id="mac_main",
+        source_id="windows_main",
         frame_id=42,
         acquired_at_ns=123,
         inference_started_ns=1_000,

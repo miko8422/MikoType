@@ -74,8 +74,15 @@
           "items": {"$ref": "#/$defs/landmark"}
         },
         "world_landmarks": {
-          "type": "array",
-          "items": {"$ref": "#/$defs/landmark"}
+          "oneOf": [
+            {"type": "array", "maxItems": 0},
+            {
+              "type": "array",
+              "minItems": 21,
+              "maxItems": 21,
+              "items": {"$ref": "#/$defs/landmark"}
+            }
+          ]
         }
       }
     },

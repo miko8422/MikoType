@@ -75,7 +75,7 @@ def _read_json(path: Path, *, artifact: str) -> Mapping[str, object]:
 def create_debug_app(context: DebugWebContext) -> FastAPI:
     """Build an inspector app without starting or owning the runtime."""
 
-    app = FastAPI(title="VR Desk Vision Production Inspector", version="0.2")
+    app = FastAPI(title="MikoType Windows-Local Inspector", version="0.2")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.get("/", response_class=HTMLResponse)

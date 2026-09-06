@@ -57,7 +57,7 @@ def test_status_is_truthful_about_offline_mock_and_source_asset(tmp_path: Path) 
 
     assert response.status_code == 200
     payload = response.json()
-    assert payload["claim"] == "mac-offline-feasibility-not-steamvr-home-verification"
+    assert payload["claim"] == "offline-asset-preview-not-steamvr-home-verification"
     assert payload["source"]["key_count"] == 82
     assert payload["source"]["material_count"] == 5
     assert payload["source"]["vertex_count"] == 1992
@@ -106,7 +106,7 @@ def test_export_builds_current_manifest_and_safe_windows_source_zip(
     assert exported.status_code == 200
     result = exported.json()
     assert result["claim"] == "source-only-not-built-not-steamvr-verified"
-    assert result["gates"]["mac_asset_validated"] is True
+    assert result["gates"]["asset_bundle_validated"] is True
     assert result["gates"]["windows_source_bundle_validated"] is True
     assert result["gates"]["windows_driver_built"] is False
     assert result["gates"]["home_model_visible"] is False
@@ -237,6 +237,6 @@ def test_webui_has_no_upload_and_does_not_claim_home_is_verified(
     html = page.text
     assert 'type="file"' not in html
     assert "不是 SteamVR Home 的运行截图" in html
-    assert "Mac 离线合成预览" in html
+    assert "本机离线合成预览" in html
     assert "POST /api/export" not in html  # API prose lives in README, not a fake result.
     assert "/api/windows-bundle" in html

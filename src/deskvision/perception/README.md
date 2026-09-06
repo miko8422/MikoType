@@ -19,9 +19,9 @@ MediaPipe privacy notice, input images remain on device, while Tasks sends
 performance/utilization metrics. The explicit guard prevents a production
 caller from silently starting that behavior.
 
-The selected runtime is pinned to `mediapipe==0.10.35` and uses the CPU delegate
-because that is the version/backend validated on the current Mac. The model
-asset is packaged under `perception/assets/`.
+The selected runtime is pinned to `mediapipe==0.10.35` and uses the CPU
+delegate. The model asset is packaged under `perception/assets/`. Windows x64
+hardware latency and compatibility remain an explicit acceptance gate.
 
 Official references:
 

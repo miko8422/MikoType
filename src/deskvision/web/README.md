@@ -1,6 +1,7 @@
-# Production Local Web Interfaces
+# Windows-Local Production Web Interfaces
 
 The production runtime has two local interfaces with different authority.
+Both bind to loopback in V0.1 and are consumed on the same Windows host.
 
 `deskvision run` serves a read-only inspector at `/`. The browser receives one
 single-slot `FramePacket + SceneState` bundle over `/ws/bundle`: metadata/state
@@ -22,3 +23,7 @@ Production artifact responses are immutable snapshots owned by the running
 process. Applying a new bundle changes disk state but cannot mix a new GLB with
 old live SceneState; the page tells the operator to restart before the new
 revision becomes active.
+
+The reserved experimental remote-inference contract is intentionally not
+mounted here. This inspector has no network authentication and must never be
+exposed as a cross-device camera service.

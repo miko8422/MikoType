@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "vr-desk-vision"
 version = "0.1.0.dev0"
-description = "Mac vision and calibrated physical-keyboard mapping node for SteamVR"
+description = "Windows-local physical-keyboard vision and SteamVR data pipeline"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -26,6 +26,7 @@ test = [
 
 [project.scripts]
 deskvision = "deskvision.main:main"
+mikotype = "deskvision.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

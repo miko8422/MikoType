@@ -2,7 +2,13 @@ from pathlib import Path
 
 import pytest
 
-from deskvision.core.config import ArtifactConfig, DeskVisionConfig, load_config
+from deskvision.core.config import (
+    ArtifactConfig,
+    CameraConfig,
+    DeskVisionConfig,
+    RemoteInferenceConfig,
+    load_config,
+)
 
 
 pytestmark = pytest.mark.unit
@@ -15,16 +21,25 @@ def test_default_config_uses_latest_frame_pipeline() -> None:
 
     assert config.pipeline.frame_policy == "latest"
     assert config.pipeline.perception_enabled is True
+    assert config.deployment.target_os == "windows"
+    assert config.deployment.topology == "single_host"
+    assert config.camera.source_id == "windows_main"
+    assert config.camera.backend == "msmf"
     assert config.keyboard_tracking.dictionary == "DICT_4X4_50"
     assert config.debug_ui.enabled is True
+    assert config.remote_inference.enabled is False
 
 
-def test_windows_example_uses_portable_camera_backend_and_valid_artifacts() -> None:
+def test_windows_example_uses_windows_backend_and_valid_artifacts() -> None:
     config = load_config(REPOSITORY / "configs" / "windows.yaml")
 
     assert config.camera.source_id == "windows_main"
-    assert config.camera.backend == "any"
+    assert config.camera.backend == "msmf"
     assert config.app.host == "127.0.0.1"
+    assert config.deployment.target_os == "windows"
+    assert config.deployment.topology == "single_host"
+    assert config.remote_inference.enabled is False
+    assert config.remote_inference.endpoint is None
     assert config.artifacts.layout_profile.is_file()
     assert config.artifacts.anchor_reference.is_file()
     assert config.artifacts.contact_map.is_file()
@@ -85,3 +100,34 @@ def test_minimal_yaml_resolves_default_artifacts_from_project_parent(
     assert config.artifacts.layout_profile == (
         tmp_path / "data/keyboards/kzzi_user_adjustable_82/layout.json"
     ).resolve()
+
+
+@pytest.mark.parametrize("backend", ("any", "msmf", "dshow"))
+def test_windows_camera_backends_are_explicit(backend: str) -> None:
+    assert CameraConfig(backend=backend).backend == backend
+
+
+def test_non_windows_camera_backend_is_rejected() -> None:
+    with pytest.raises(ValueError, match="msmf"):
+        CameraConfig(backend="avfoundation")
+
+
+def test_remote_inference_is_disabled_and_requires_an_endpoint() -> None:
+    with pytest.raises(ValueError, match="endpoint"):
+        RemoteInferenceConfig(enabled=True)
+
+
+def test_remote_inference_rejects_plaintext_non_loopback_and_url_secrets() -> None:
+    with pytest.raises(ValueError, match="wss"):
+        RemoteInferenceConfig(endpoint="ws://192.168.1.20/inference")
+    with pytest.raises(ValueError, match="credentials"):
+        RemoteInferenceConfig(endpoint="wss://token@example.com/inference")
+    with pytest.raises(ValueError, match="query"):
+        RemoteInferenceConfig(endpoint="wss://example.com/inference?token=secret")
+
+
+def test_remote_inference_cannot_disable_tls_or_expand_the_frame_limit() -> None:
+    with pytest.raises(ValueError, match="remain true"):
+        RemoteInferenceConfig(require_tls=False)
+    with pytest.raises(ValueError, match="4194304"):
+        RemoteInferenceConfig(max_frame_bytes=4 * 1024 * 1024 + 1)

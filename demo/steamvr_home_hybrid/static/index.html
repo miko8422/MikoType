@@ -12,10 +12,10 @@
       <header class="hero panel">
         <div class="hero-copy">
           <p class="eyebrow">VR DESK VISION / STEAMVR HOME HYBRID LAB / 8776</p>
-          <h1>先在 Mac 验证边界，<br /><span>再把同一份键盘带进 SteamVR Home</span></h1>
+          <h1>在同一台 Windows 上准备键盘，<br /><span>再把它带进 SteamVR Home</span></h1>
           <p class="lede">
             这里验证 3D 资产、键位高亮协议和 Windows 源码包。当前画面是
-            <strong>Mac 离线合成预览</strong>，不是 SteamVR Home 的运行截图。
+            <strong>本机离线合成预览</strong>，不是 SteamVR Home 的运行截图。
           </p>
         </div>
         <div class="truth-card">
@@ -28,7 +28,7 @@
       </header>
 
       <section class="gate-strip" aria-label="验证阶段">
-        <article data-gate="mac_asset_validated"><span>01</span><b>Mac 资产</b><small>待检查</small></article>
+        <article data-gate="asset_bundle_validated"><span>01</span><b>3D 资产</b><small>待检查</small></article>
         <i></i>
         <article data-gate="windows_source_bundle_validated"><span>02</span><b>Windows 源码包</b><small>待生成</small></article>
         <i></i>
@@ -78,7 +78,7 @@
             <h2>生成 SteamVR 烟测源码包</h2>
             <p>
               把 GLB 转为 Valve Render Model，再连同 GenericTracker Driver、静态
-              Overlay companion 和安全安装脚本打包。Mac 不会生成或冒充可运行 DLL。
+              Overlay companion 和安全安装脚本打包。页面不会把源码检查冒充为可运行 DLL。
             </p>
             <button id="export-button" class="primary" type="button">验证并生成源码包</button>
             <div id="export-result" class="export-result" data-state="idle">
@@ -101,9 +101,9 @@
           <span class="contract">SceneState 0.2 · latest only · stale clears</span>
         </div>
         <div class="flow-grid">
-          <article><span>MAC / FASTAPI</span><b>视觉与键位状态</b><small>相机、MediaPipe、ArUco、Contact Map、GLB、Highlight</small></article>
-          <em>WebSocket<br />SceneState</em>
-          <article><span>WINDOWS COMPANION</span><b>协议与高亮桥</b><small>只保留最新状态，revision/TTL 不通过立即清空</small></article>
+          <article><span>WINDOWS / FASTAPI</span><b>视觉与键位状态</b><small>相机、MediaPipe、ArUco、Contact Map、GLB、Highlight</small></article>
+          <em>Loopback<br />SceneState</em>
+          <article><span>WINDOWS COMPANION</span><b>协议与高亮桥</b><small>同机只保留最新状态，revision/TTL 不通过立即清空</small></article>
           <em>IPC / Overlay</em>
           <article><span>STEAMVR DRIVER</span><b>薄设备与静态模型</b><small>GenericTracker + OBJ/MTL/PNG，不在 vrserver 内联网</small></article>
           <em>Compositor</em>
@@ -132,7 +132,7 @@
         </article>
         <article class="panel warning-panel">
           <p class="eyebrow">WINDOWS ACCEPTANCE GATE</p>
-          <h2>这些结果 Mac 无法代替</h2>
+          <h2>这些结果仍需 Windows + HMD 实测</h2>
           <ul>
             <li>Driver DLL 被 <code>vrserver</code> 正确加载</li>
             <li>SteamVR Home 持续绘制第三方 GenericTracker 模型</li>

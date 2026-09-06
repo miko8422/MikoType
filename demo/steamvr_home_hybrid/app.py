@@ -248,7 +248,7 @@ class HybridDemoRuntime:
         capabilities = {
             "asset_export": self._capability(
                 capability.asset_export and source_ready,
-                "生产 GLB/Manifest 可在本机严格校验并转换",
+                "GLB/Manifest 可在本机严格校验并转换",
                 source_error or "本机不能执行资产转换",
             ),
             "state_replay": self._capability(
@@ -269,12 +269,12 @@ class HybridDemoRuntime:
             "steamvr_runtime": self._capability(
                 capability.steamvr_runtime,
                 "SteamVR Runtime 文件已发现；仍需头显实测",
-                "Apple Silicon Mac 没有受支持的 SteamVR Runtime/Home",
+                "SteamVR Runtime/Home 验收需要 Windows x64",
             ),
         }
         gates = (
             {
-                "id": "mac_asset_validated",
+                "id": "asset_bundle_validated",
                 "status": "passed" if export_ready else ("ready" if source_ready else "blocked"),
                 "note": "已验证" if export_ready else ("可执行" if source_ready else "源资产失败"),
             },
@@ -308,7 +308,7 @@ class HybridDemoRuntime:
             "schema_version": "steamvr-home-hybrid-status-0.1",
             "demo": "steamvr_home_hybrid",
             "mode": "offline-mock" if not capability.steamvr_runtime else "runtime-present-not-verified",
-            "claim": "mac-offline-feasibility-not-steamvr-home-verification",
+            "claim": "offline-asset-preview-not-steamvr-home-verification",
             "platform": {
                 "system": capability.platform_system,
                 "machine": capability.machine,
@@ -344,7 +344,7 @@ class HybridDemoRuntime:
                 "bundle": bundle,
                 "file_count": len(outputs) + int(bundle.get("file_count", 0)),
                 "gates": {
-                    "mac_asset_validated": True,
+                    "asset_bundle_validated": True,
                     "windows_source_bundle_validated": True,
                     "windows_driver_built": False,
                     "steamvr_driver_loaded": False,

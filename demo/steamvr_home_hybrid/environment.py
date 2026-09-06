@@ -78,8 +78,8 @@ def probe_environment(
 ) -> EnvironmentCapabilities:
     """Return capabilities that are actually available in this process.
 
-    Parameters are injectable so the Windows branches can be tested safely on
-    macOS.  Supplying a pretend Windows platform never executes a Windows tool;
+    Parameters are injectable so Windows branches can be tested safely on a
+    non-Windows development host. Supplying a pretend platform never executes a tool;
     the function remains a filesystem and ``PATH`` inspection only.
     """
 

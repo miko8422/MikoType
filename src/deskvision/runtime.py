@@ -1,4 +1,4 @@
-"""Composition root for the single-process Mac vision node."""
+"""Composition root for the single-host Windows V0.1 runtime."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from deskvision.calibration.artifacts import (
     load_keyboard_calibration_artifacts,
 )
 from deskvision.core.config import DeskVisionConfig
+from deskvision.core.platform import is_loopback_host, require_windows_runtime
 from deskvision.keyboard.adaptive_model import (
     GeneratedKeyboardModel,
     generate_adaptive_keyboard_model,
@@ -29,6 +30,7 @@ from deskvision.perception.key_candidates import (
     ContactKeyMapperConfig,
 )
 from deskvision.perception.mediapipe_hands import (
+    DEFAULT_MODEL_PATH,
     MediaPipeHandTracker,
     MediaPipeHandTrackerConfig,
 )
@@ -43,13 +45,49 @@ from deskvision.transport.local_websocket import LocalWebSocketPublisher
 from deskvision.video.capture import CaptureThread
 from deskvision.video.jpeg_encoder import LatestJpegEncoder
 from deskvision.video.latest_frame import LatestFrameStore
-from deskvision.video.mac_camera import MacCameraSource
+from deskvision.video.windows_camera import WindowsCameraSource
 from deskvision.video.source import FrameSource
 from deskvision.web.app import DebugWebContext, create_debug_app
 
 
 class RuntimeBuildError(RuntimeError):
     """Production artifacts or configuration cannot form a safe runtime."""
+
+
+def validate_runtime_config(config: DeskVisionConfig) -> None:
+    """Validate the configuration invariants shared by ``check`` and startup.
+
+    This deliberately excludes host hardware and MediaPipe initialization.  The
+    acknowledgement flag can be supplied on the command line at startup, while
+    every invariant below is an unconditional V0.1 runtime requirement.
+    """
+
+    if not is_loopback_host(config.app.host):
+        raise RuntimeBuildError(
+            "the V0.1 FastAPI service must stay on a loopback host"
+        )
+    if not config.pipeline.perception_enabled:
+        raise RuntimeBuildError("production mapping requires perception_enabled=true")
+    if config.remote_inference.enabled:
+        raise RuntimeBuildError(
+            "remote inference is an experimental contract and is not active in "
+            "V0.1; use the single-host Windows topology"
+        )
+    if not config.hand_tracking.enabled or not config.keyboard_tracking.enabled:
+        raise RuntimeBuildError("hand and keyboard tracking must both be enabled")
+    hand_model_path = config.hand_tracking.model_path or DEFAULT_MODEL_PATH
+    if not hand_model_path.is_file():
+        raise RuntimeBuildError(
+            f"MediaPipe Hand Landmarker asset is missing: {hand_model_path}"
+        )
+    if not config.debug_ui.enabled:
+        raise RuntimeBuildError(
+            "the V0.1 single-host topology requires the local FastAPI service"
+        )
+    if not config.debug_ui.websocket_state:
+        raise RuntimeBuildError(
+            "the exact-frame debug inspector requires websocket_state=true"
+        )
 
 
 def _load_artifacts(config: DeskVisionConfig) -> KeyboardCalibrationArtifacts:
@@ -243,14 +281,9 @@ def build_runtime(
 ) -> DeskVisionRuntime:
     """Validate every startup dependency before camera threads are started."""
 
-    if not config.pipeline.perception_enabled:
-        raise RuntimeBuildError("production mapping requires perception_enabled=true")
-    if not config.hand_tracking.enabled or not config.keyboard_tracking.enabled:
-        raise RuntimeBuildError("hand and keyboard tracking must both be enabled")
-    if config.debug_ui.enabled and not config.debug_ui.websocket_state:
-        raise RuntimeBuildError(
-            "the exact-frame debug inspector requires websocket_state=true"
-        )
+    if source is None:
+        require_windows_runtime()
+    validate_runtime_config(config)
 
     artifacts = _load_artifacts(config)
     generated = ensure_keyboard_model(
@@ -299,7 +332,7 @@ def build_runtime(
                 min_pose_confidence=config.keyboard_tracking.min_pose_confidence,
                 direct_spatial_weight=config.keyboard_tracking.direct_weight,
                 direct_probability=config.interaction.direct_min_intensity,
-                # MacCameraSource deliberately preserves raw sensor
+                # WindowsCameraSource deliberately preserves raw sensor
                 # orientation. Browser preview mirroring is a separate view.
                 source_coordinates_mirrored=False,
             ),
@@ -313,7 +346,7 @@ def build_runtime(
         )
         frame_store = LatestFrameStore()
         state_store = LatestSceneStateStore()
-        camera_source = source or MacCameraSource(config.camera)
+        camera_source = source or WindowsCameraSource(config.camera)
         capture = CaptureThread(
             camera_source,
             frame_store,
@@ -390,4 +423,5 @@ __all__ = [
     "RuntimeBuildError",
     "build_runtime",
     "ensure_keyboard_model",
+    "validate_runtime_config",
 ]

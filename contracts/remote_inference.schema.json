@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MikoType Experimental Remote Inference 0.1",
+  "description": "Disabled post-V0.1 WebSocket envelopes. A frame_header JSON message is followed by one binary JPEG; scene_state is returned as JSON.",
+  "oneOf": [
+    {"$ref": "#/$defs/frameHeader"},
+    {"$ref": "#/$defs/sceneStateEnvelope"}
+  ],
+  "$defs": {
+    "canonicalUuid": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "frameHeader": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type", "protocol_version", "session_id", "sequence", "source_id",
+        "source_frame_id", "captured_at_ns", "width", "height", "encoding",
+        "byte_length"
+      ],
+      "properties": {
+        "type": {"const": "frame_header"},
+        "protocol_version": {"const": "mikotype-remote-inference-0.1"},
+        "session_id": {"$ref": "#/$defs/canonicalUuid"},
+        "sequence": {"type": "integer", "minimum": 0},
+        "source_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "source_frame_id": {"type": "integer", "minimum": 0},
+        "captured_at_ns": {"type": "integer", "minimum": 0},
+        "width": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "height": {"type": "integer", "minimum": 1, "maximum": 8192},
+        "encoding": {"const": "jpeg"},
+        "byte_length": {"type": "integer", "minimum": 1, "maximum": 4194304}
+      }
+    },
+    "sceneStateEnvelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type", "protocol_version", "session_id", "sequence", "source_id",
+        "source_frame_id", "state"
+      ],
+      "properties": {
+        "type": {"const": "scene_state"},
+        "protocol_version": {"const": "mikotype-remote-inference-0.1"},
+        "session_id": {"$ref": "#/$defs/canonicalUuid"},
+        "sequence": {"type": "integer", "minimum": 0},
+        "source_id": {"type": "string", "minLength": 1, "maxLength": 128},
+        "source_frame_id": {"type": "integer", "minimum": 0},
+        "state": {
+          "allOf": [
+            {"$ref": "scene_state.schema.json"},
+            {
+              "properties": {
+                "hands": {"maxItems": 2},
+                "fingertips": {"maxItems": 10},
+                "key_highlights": {"maxItems": 256},
+                "hovered_keys": {"maxItems": 256}
+              }
+            }
+          ]
+        }
+      }
+    }
+  }
+}
