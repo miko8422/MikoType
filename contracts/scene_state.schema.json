@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vr-desk-vision.local/contracts/scene-state-0.2.schema.json",
+  "title": "VR Desk Vision SceneState 0.2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source_id",
+    "source_frame_id",
+    "captured_at_ns",
+    "emitted_at_ns",
+    "keyboard",
+    "hands",
+    "fingertips",
+    "key_highlights",
+    "hovered_keys",
+    "mouse",
+    "diagnostics"
+  ],
+  "properties": {
+    "schema_version": {"const": "0.2"},
+    "source_id": {"type": "string", "minLength": 1},
+    "source_frame_id": {"type": "integer", "minimum": 0},
+    "captured_at_ns": {"type": "integer", "minimum": 0},
+    "emitted_at_ns": {"type": "integer", "minimum": 0},
+    "keyboard": {
+      "oneOf": [{"type": "null"}, {"$ref": "#/$defs/keyboard"}]
+    },
+    "hands": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/hand"}
+    },
+    "fingertips": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/fingertip"}
+    },
+    "key_highlights": {
+      "type": "array",
+      "items": {"$ref": "#/$defs/highlight"}
+    },
+    "hovered_keys": {
+      "description": "0.2 compatibility alias of key_highlights",
+      "type": "array",
+      "items": {"$ref": "#/$defs/highlight"}
+    },
+    "mouse": {"type": ["object", "null"]},
+    "diagnostics": {"$ref": "#/$defs/diagnostics"}
+  },
+  "$defs": {
+    "unitInterval": {"type": "number", "minimum": 0, "maximum": 1},
+    "landmark": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z", "score"],
+      "properties": {
+        "x": {"type": "number"},
+        "y": {"type": "number"},
+        "z": {"type": "number"},
+        "score": {"$ref": "#/$defs/unitInterval"}
+      }
+    },
+    "hand": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["handedness", "score", "landmarks", "world_landmarks"],
+      "properties": {
+        "handedness": {"enum": ["left", "right", "unknown"]},
+        "score": {"$ref": "#/$defs/unitInterval"},
+        "landmarks": {
+          "type": "array",
+          "minItems": 21,
+          "maxItems": 21,
+          "items": {"$ref": "#/$defs/landmark"}
+        },
+        "world_landmarks": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/landmark"}
+        }
+      }
+    },
+    "candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "physical_key_id", "model_node_id", "label", "rank",
+        "distance", "probability", "direct"
+      ],
+      "properties": {
+        "physical_key_id": {"type": "string", "minLength": 1},
+        "model_node_id": {"type": "string", "pattern": "^key:"},
+        "label": {"type": "string"},
+        "rank": {"type": "integer", "minimum": 1},
+        "distance": {"type": "number", "minimum": 0},
+        "probability": {"$ref": "#/$defs/unitInterval"},
+        "direct": {"type": "boolean"}
+      }
+    },
+    "fingertip": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bubble_id", "hand_index", "handedness", "finger", "confidence",
+        "image_x", "image_y", "reference_x", "reference_y",
+        "pose_confidence", "candidates"
+      ],
+      "properties": {
+        "bubble_id": {"type": "string", "minLength": 1},
+        "hand_index": {"type": "integer", "minimum": 0},
+        "handedness": {"enum": ["left", "right", "unknown"]},
+        "finger": {"type": "string", "minLength": 1},
+        "confidence": {"$ref": "#/$defs/unitInterval"},
+        "image_x": {"type": "number"},
+        "image_y": {"type": "number"},
+        "reference_x": {"type": "number"},
+        "reference_y": {"type": "number"},
+        "pose_confidence": {"$ref": "#/$defs/unitInterval"},
+        "candidates": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/candidate"}
+        }
+      }
+    },
+    "highlight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "physical_key_id", "model_node_id", "label", "intensity",
+        "direct", "contributors"
+      ],
+      "properties": {
+        "physical_key_id": {"type": "string", "minLength": 1},
+        "model_node_id": {"type": "string", "pattern": "^key:"},
+        "label": {"type": "string"},
+        "intensity": {"$ref": "#/$defs/unitInterval"},
+        "direct": {"type": "boolean"},
+        "contributors": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        }
+      }
+    },
+    "keyboard": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "coordinate_space", "pose", "artifacts", "model", "key_semantics"
+      ],
+      "properties": {
+        "coordinate_space": {"const": "aruco-anchor-reference-2d"},
+        "key_semantics": {"const": "likely-contact-not-mechanical-keypress"},
+        "pose": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "status", "usable", "confidence", "anchor_count",
+            "detected_marker_ids", "reference_to_image",
+            "reprojection_rmse_px", "coast_age_ms"
+          ],
+          "properties": {
+            "status": {"type": "string", "minLength": 1},
+            "usable": {"type": "boolean"},
+            "confidence": {"$ref": "#/$defs/unitInterval"},
+            "anchor_count": {"type": "integer", "minimum": 0},
+            "detected_marker_ids": {
+              "type": "array",
+              "items": {"type": "integer", "minimum": 0, "maximum": 49},
+              "uniqueItems": true
+            },
+            "reference_to_image": {
+              "oneOf": [
+                {"type": "null"},
+                {"type": "array", "minItems": 9, "maxItems": 9, "items": {"type": "number"}}
+              ]
+            },
+            "reprojection_rmse_px": {"type": ["number", "null"], "minimum": 0},
+            "coast_age_ms": {"type": "number", "minimum": 0}
+          }
+        },
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["layout_content", "layout_inventory", "anchor", "contact_map", "model"],
+          "properties": {
+            "layout_content": {"type": "string", "minLength": 1},
+            "layout_inventory": {"type": "string", "minLength": 1},
+            "anchor": {"type": "string", "minLength": 1},
+            "contact_map": {"type": "string", "minLength": 1},
+            "model": {"type": "string", "minLength": 1}
+          }
+        },
+        "model": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["revision", "sha256", "uri", "manifest_uri", "key_count", "node_prefix"],
+          "properties": {
+            "revision": {"type": "string", "minLength": 1},
+            "sha256": {"type": "string", "pattern": "^[a-f0-9]{64}$"},
+            "uri": {"type": "string", "minLength": 1},
+            "manifest_uri": {"type": "string", "minLength": 1},
+            "key_count": {"type": "integer", "minimum": 1},
+            "node_prefix": {"const": "key:"}
+          }
+        }
+      }
+    },
+    "diagnostics": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "capture_fps", "frame_age_ms", "hand_inference_ms",
+        "keyboard_inference_ms", "perception_ms", "status", "error"
+      ],
+      "properties": {
+        "capture_fps": {"type": "number", "minimum": 0},
+        "frame_age_ms": {"type": "number", "minimum": 0},
+        "hand_inference_ms": {"type": "number", "minimum": 0},
+        "keyboard_inference_ms": {"type": "number", "minimum": 0},
+        "perception_ms": {"type": "number", "minimum": 0},
+        "status": {"type": "string", "minLength": 1},
+        "error": {"type": ["string", "null"]}
+      }
+    }
+  }
+}

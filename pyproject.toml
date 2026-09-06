@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vr-desk-vision"
+version = "0.1.0.dev0"
+description = "Mac vision and calibrated physical-keyboard mapping node for SteamVR"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "numpy>=1.26",
+  "opencv-contrib-python>=4.8",
+  "mediapipe==0.10.35",
+  "PyYAML>=6.0",
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+]
+
+[project.optional-dependencies]
+test = [
+  "pytest>=8.0",
+  "httpx>=0.27",
+  "Pillow>=10",
+]
+
+[project.scripts]
+deskvision = "deskvision.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+deskvision = [
+  "perception/assets/*.task",
+  "web/static/*.html",
+  "web/static/*.css",
+  "web/static/*.js",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+addopts = "-ra --strict-markers -m 'not hardware and not soak'"
+markers = [
+  "unit: fast tests with no network, camera, or server process",
+  "integration: tests that connect multiple local project components",
+  "hardware: explicit tests that open real hardware and are skipped by default",
+  "soak: long-running stability tests that are skipped by default",
+]

@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>SteamVR Home Hybrid Lab</title>
+    <link rel="stylesheet" href="/static/style.css?v=home-hybrid-v1" />
+  </head>
+  <body>
+    <main>
+      <header class="hero panel">
+        <div class="hero-copy">
+          <p class="eyebrow">VR DESK VISION / STEAMVR HOME HYBRID LAB / 8776</p>
+          <h1>先在 Mac 验证边界，<br /><span>再把同一份键盘带进 SteamVR Home</span></h1>
+          <p class="lede">
+            这里验证 3D 资产、键位高亮协议和 Windows 源码包。当前画面是
+            <strong>Mac 离线合成预览</strong>，不是 SteamVR Home 的运行截图。
+          </p>
+        </div>
+        <div class="truth-card">
+          <span class="pulse"></span>
+          <div>
+            <b id="truth-title">正在检查本机…</b>
+            <small id="truth-copy">不会启动 Steam、SteamVR 或注册驱动</small>
+          </div>
+        </div>
+      </header>
+
+      <section class="gate-strip" aria-label="验证阶段">
+        <article data-gate="mac_asset_validated"><span>01</span><b>Mac 资产</b><small>待检查</small></article>
+        <i></i>
+        <article data-gate="windows_source_bundle_validated"><span>02</span><b>Windows 源码包</b><small>待生成</small></article>
+        <i></i>
+        <article data-gate="windows_driver_built"><span>03</span><b>Windows DLL</b><small>需 Windows</small></article>
+        <i></i>
+        <article data-gate="steamvr_driver_loaded"><span>04</span><b>SteamVR Driver</b><small>需头显</small></article>
+        <i></i>
+        <article data-gate="home_model_visible"><span>05</span><b>Home 可见</b><small>需实机</small></article>
+        <i></i>
+        <article data-gate="overlay_aligned"><span>06</span><b>高亮对齐</b><small>需实机</small></article>
+      </section>
+
+      <section class="workspace">
+        <article class="viewer-card panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">MOCK COMPOSITOR · NOT STEAMVR</p>
+              <h2>键盘模型与高亮离线预览</h2>
+            </div>
+            <div class="viewer-actions">
+              <label><input id="outline-toggle" type="checkbox" /> 键帽边界</label>
+              <button id="highlight-button" type="button">下一组键位</button>
+              <button id="animate-button" type="button" aria-pressed="false">自动巡检</button>
+            </div>
+          </div>
+          <div id="viewer" aria-label="本机离线模拟的三维键盘"></div>
+          <div class="viewer-footer">
+            <span id="viewer-status">正在验证 GLB…</span>
+            <code id="active-highlight">NO HIGHLIGHT</code>
+          </div>
+        </article>
+
+        <aside class="side-stack">
+          <article class="panel capability-panel">
+            <div class="section-head compact">
+              <div>
+                <p class="eyebrow">LOCAL CAPABILITY PROBE</p>
+                <h2>这台设备能验证什么</h2>
+              </div>
+              <span id="platform-pill" class="pill">checking</span>
+            </div>
+            <div id="capabilities" class="capabilities" aria-live="polite"></div>
+          </article>
+
+          <article class="panel package-panel">
+            <p class="eyebrow">WINDOWS HANDOFF</p>
+            <h2>生成 SteamVR 烟测源码包</h2>
+            <p>
+              把 GLB 转为 Valve Render Model，再连同 GenericTracker Driver、静态
+              Overlay companion 和安全安装脚本打包。Mac 不会生成或冒充可运行 DLL。
+            </p>
+            <button id="export-button" class="primary" type="button">验证并生成源码包</button>
+            <div id="export-result" class="export-result" data-state="idle">
+              <b>尚未生成</b><small>不会修改生产资产</small>
+            </div>
+            <div class="downloads">
+              <a id="manifest-link" href="/api/export/manifest" download aria-disabled="true">导出清单</a>
+              <a id="bundle-link" href="/api/windows-bundle" download aria-disabled="true">Windows 源码包</a>
+            </div>
+          </article>
+        </aside>
+      </section>
+
+      <section class="architecture panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">HYBRID ROUTE</p>
+            <h2>真正进入 SteamVR Home 时的职责分离</h2>
+          </div>
+          <span class="contract">SceneState 0.2 · latest only · stale clears</span>
+        </div>
+        <div class="flow-grid">
+          <article><span>MAC / FASTAPI</span><b>视觉与键位状态</b><small>相机、MediaPipe、ArUco、Contact Map、GLB、Highlight</small></article>
+          <em>WebSocket<br />SceneState</em>
+          <article><span>WINDOWS COMPANION</span><b>协议与高亮桥</b><small>只保留最新状态，revision/TTL 不通过立即清空</small></article>
+          <em>IPC / Overlay</em>
+          <article><span>STEAMVR DRIVER</span><b>薄设备与静态模型</b><small>GenericTracker + OBJ/MTL/PNG，不在 vrserver 内联网</small></article>
+          <em>Compositor</em>
+          <article><span>STEAMVR HOME</span><b>实机呈现</b><small>模型可见性、空间位置和 Overlay 对齐必须在 Windows 验证</small></article>
+        </div>
+        <details>
+          <summary>为什么空间位置仍是单独的难点？</summary>
+          <p>
+            当前 ArUco 结果是摄像头图像中的二维 Homography；SteamVR 要的是米制六自由度位姿。
+            本 Demo 只给模型使用明确标记的固定头显相对测试位姿，绝不会把 3×3 图像矩阵伪装成
+            SteamVR Pose。后续仍需 Camera-to-VR 坐标外参标定。
+          </p>
+        </details>
+      </section>
+
+      <section class="evidence-grid">
+        <article class="panel">
+          <p class="eyebrow">ACTIVE ASSET</p>
+          <h2>用户自适应键盘</h2>
+          <dl>
+            <div><dt>KEYS</dt><dd id="key-count">—</dd></div>
+            <div><dt>SIZE</dt><dd id="model-size">—</dd></div>
+            <div><dt>MODEL REV</dt><dd><code id="model-revision">—</code></dd></div>
+            <div><dt>SHA-256</dt><dd><code id="model-sha">—</code></dd></div>
+          </dl>
+        </article>
+        <article class="panel warning-panel">
+          <p class="eyebrow">WINDOWS ACCEPTANCE GATE</p>
+          <h2>这些结果 Mac 无法代替</h2>
+          <ul>
+            <li>Driver DLL 被 <code>vrserver</code> 正确加载</li>
+            <li>SteamVR Home 持续绘制第三方 GenericTracker 模型</li>
+            <li>键盘约 35 × 15 cm，方向正确且不镜像</li>
+            <li>Overlay 与真实键帽在头显中稳定对齐</li>
+          </ul>
+        </article>
+      </section>
+    </main>
+
+    <script src="/static/vendor/keyboard-3d-viewer.js?v=home-hybrid-v1"></script>
+    <script src="/static/app.js?v=home-hybrid-v1"></script>
+  </body>
+</html>

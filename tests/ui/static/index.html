@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VR Desk Vision · Isolated Video Test UI</title>
+    <link rel="stylesheet" href="/static/style.css?v=3" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">VR DESK VISION / TEST ENVIRONMENT</p>
+          <h1>Video Layer Observatory</h1>
+          <p class="subtitle">Isolated video source · production entry disabled</p>
+        </div>
+        <div class="topbar-actions">
+          <div id="status" class="status" aria-live="polite">
+            <span class="status-dot"></span>
+            <span id="status-text">starting</span>
+          </div>
+          <a class="popout-link" href="/static/popout.html" target="_blank" rel="noopener">
+            Open minimal viewer
+          </a>
+        </div>
+      </header>
+
+      <section class="stage" aria-label="Video preview">
+        <div class="stage-header">
+          <span>Latest frame</span>
+          <span id="source-label">test_synthetic</span>
+        </div>
+        <div class="viewport">
+          <canvas id="frame-canvas" aria-label="Latest frame from the isolated capture thread"></canvas>
+          <div id="frame-placeholder">等待测试帧…</div>
+        </div>
+      </section>
+
+      <section class="metrics" aria-label="Video layer metrics">
+        <div class="metric">
+          <span>Frame ID</span>
+          <strong id="frame-id">—</strong>
+        </div>
+        <div class="metric">
+          <span>Capture FPS</span>
+          <strong id="capture-fps">—</strong>
+        </div>
+        <div class="metric">
+          <span>Frame age</span>
+          <strong id="frame-age">—</strong>
+        </div>
+        <div class="metric metric-accent">
+          <span>Display FPS</span>
+          <strong id="display-fps">—</strong>
+        </div>
+        <div class="metric metric-accent">
+          <span>Est. display latency</span>
+          <strong id="display-latency">—</strong>
+        </div>
+        <div class="metric metric-accent">
+          <span>Capture→server-ready</span>
+          <strong id="transport-latency">—</strong>
+        </div>
+        <div class="metric metric-accent">
+          <span>Display frame</span>
+          <strong id="display-frame-id">—</strong>
+        </div>
+        <div class="metric">
+          <span>Captured</span>
+          <strong id="frames-captured">—</strong>
+        </div>
+        <div class="metric">
+          <span>Overwritten</span>
+          <strong id="overwritten">—</strong>
+        </div>
+        <div class="metric">
+          <span>Read failures</span>
+          <strong id="read-failures">—</strong>
+        </div>
+        <div class="metric">
+          <span>Dropped before decode</span>
+          <strong id="dropped-display">—</strong>
+        </div>
+      </section>
+
+      <div class="preview-status" aria-live="polite">
+        Preview transport: <strong id="preview-state">connecting</strong>
+      </div>
+      <div id="alert" class="alert" role="alert" hidden></div>
+    </main>
+    <script src="/static/low-latency.js?v=3"></script>
+    <script src="/static/app.js?v=3"></script>
+  </body>
+</html>

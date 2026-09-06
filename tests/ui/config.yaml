@@ -1,0 +1,16 @@
+app:
+  host: "127.0.0.1"
+  port: 8766
+  log_level: "INFO"
+
+test_ui:
+  source: "synthetic"
+  width: 960
+  height: 540
+  fps: 30
+  stale_frame_threshold_ms: 500
+  preview_poll_ms: 250
+
+isolation:
+  production_camera: false
+  production_web_server: false

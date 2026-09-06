@@ -1,0 +1,2523 @@
+{
+  "schema_version": "adaptive-keyboard-3d-model-0.1",
+  "generator_version": "procedural-keyboard-glb-0.1",
+  "node_contract": "physical-key-id-v1",
+  "generation_recipe": {
+    "key_pitch_m": 0.01905,
+    "key_gap_m": 0.0022,
+    "key_height_m": 0.0105,
+    "key_clearance_m": 0.001,
+    "keycap_top_scale": 0.88,
+    "minimum_keycap_size_m": 0.004,
+    "maximum_layout_extent_units": 1000.0,
+    "material_policy": "semantic-key-groups-v1",
+    "case_margin_m": 0.009,
+    "case_height_m": 0.008,
+    "materials": [
+      {
+        "name": "case",
+        "color": [
+          0.055,
+          0.075,
+          0.09,
+          1.0
+        ],
+        "metallic": 0.18,
+        "roughness": 0.56
+      },
+      {
+        "name": "standard",
+        "color": [
+          0.82,
+          0.79,
+          0.67,
+          1.0
+        ],
+        "metallic": 0.0,
+        "roughness": 0.64
+      },
+      {
+        "name": "function",
+        "color": [
+          0.37,
+          0.42,
+          0.34,
+          1.0
+        ],
+        "metallic": 0.0,
+        "roughness": 0.66
+      },
+      {
+        "name": "modifier",
+        "color": [
+          0.27,
+          0.34,
+          0.32,
+          1.0
+        ],
+        "metallic": 0.0,
+        "roughness": 0.66
+      },
+      {
+        "name": "accent",
+        "color": [
+          0.85,
+          0.35,
+          0.1,
+          1.0
+        ],
+        "metallic": 0.0,
+        "roughness": 0.58
+      }
+    ]
+  },
+  "model_revision": "8e3e473cc462a34f32e10e5dcf0e2fd486ce204c68d663847ff36f753b3fd251",
+  "geometry_revision": "a378fec82f6d896e5dbfd6ade26808624f06cdfaf02aae334e9e2e7a252ff6fe",
+  "layout": {
+    "layout_id": "kzzi_user_adjustable_82",
+    "layout_name": "Kzzi user-adjusted 82-key physical profile",
+    "profile_content_hash": "29922a29274404b61439144bd8770762a49cee40a65b4bbf84137bcc200975db",
+    "inventory_revision": "85086cef948159c4efcc0b1433ab6aa4e85ff323fcdc64c1316f947b063a2738",
+    "key_count": 82
+  },
+  "contact_binding": {
+    "type": "physical_key_id",
+    "coordinate_policy": "semantic_binding_not_sample_as_keycap_boundary",
+    "contact_map_revision": "421de70920c7b6ea90bf2c252193ea2437e1ffc9b469dad198bbcd94c0311d4d",
+    "anchor_revision": "8d55ba6424f52b3c621c454022548ebcd92224d21c0921a590d7084ecac3f549",
+    "samples_per_key": 5,
+    "coordinate_system": "aruco-anchor-reference-2d"
+  },
+  "geometry": {
+    "source": "user_layout_rectangles",
+    "unit": "meter",
+    "layout_unit_m": 0.01905,
+    "key_gap_m": 0.0022,
+    "key_height_m": 0.0105,
+    "key_clearance_m": 0.001,
+    "keycap_top_scale": 0.88,
+    "case_height_m": 0.008,
+    "case_size": [
+      0.34851750000000004,
+      0.008,
+      0.15230249999999998
+    ],
+    "case_center": [
+      0.0,
+      0.0,
+      0.0
+    ],
+    "bounds": {
+      "min": [
+        -0.17425875000000002,
+        -0.004,
+        -0.07615124999999999
+      ],
+      "max": [
+        0.17425875000000002,
+        0.0155,
+        0.07615124999999999
+      ]
+    }
+  },
+  "basis": {
+    "long_axis_xz": [
+      1.0,
+      0.0
+    ],
+    "short_axis_xz": [
+      0.0,
+      1.0
+    ],
+    "up_axis": "+Y"
+  },
+  "key_count": 82,
+  "model": {
+    "filename": "adaptive_keyboard.glb",
+    "media_type": "model/gltf-binary",
+    "sha256": "ea1672979431a47b0766d5f108945544640068eed1d88f7d3627fc32d5b516a3",
+    "byte_length": 30076,
+    "self_contained": true,
+    "external_asset_used": false
+  },
+  "keys": [
+    {
+      "key_id": "escape",
+      "label": "Esc",
+      "browser_code": "Escape",
+      "row": 0,
+      "layout_rect_units": [
+        0.0,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "accent",
+      "contact_center_reference": [
+        0.07436736575502627,
+        0.7682215942862012
+      ],
+      "contact_sample_spread_reference": 0.21610914474368526,
+      "center": [
+        -0.15573375,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:escape"
+    },
+    {
+      "key_id": "f1",
+      "label": "F1",
+      "browser_code": "F1",
+      "row": 0,
+      "layout_rect_units": [
+        1.65,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        2.648723699384322,
+        0.3583804012013672
+      ],
+      "contact_sample_spread_reference": 0.10944906204645367,
+      "center": [
+        -0.12430125,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f1"
+    },
+    {
+      "key_id": "f2",
+      "label": "F2",
+      "browser_code": "F2",
+      "row": 0,
+      "layout_rect_units": [
+        2.65,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        4.556914643693988,
+        0.5158378561999376
+      ],
+      "contact_sample_spread_reference": 0.11764616213386123,
+      "center": [
+        -0.10525125000000002,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f2"
+    },
+    {
+      "key_id": "f3",
+      "label": "F3",
+      "browser_code": "F3",
+      "row": 0,
+      "layout_rect_units": [
+        3.65,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        6.083683193528578,
+        0.5295748597533824
+      ],
+      "contact_sample_spread_reference": 0.11827925715164415,
+      "center": [
+        -0.08620125,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f3"
+    },
+    {
+      "key_id": "f4",
+      "label": "F4",
+      "browser_code": "F4",
+      "row": 0,
+      "layout_rect_units": [
+        4.65,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        8.191312007919656,
+        0.6773813648503837
+      ],
+      "contact_sample_spread_reference": 0.1923221105391339,
+      "center": [
+        -0.06715125,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f4"
+    },
+    {
+      "key_id": "f5",
+      "label": "F5",
+      "browser_code": "F5",
+      "row": 0,
+      "layout_rect_units": [
+        5.9,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        10.647832434060314,
+        0.4896064417608497
+      ],
+      "contact_sample_spread_reference": 0.05460786975222607,
+      "center": [
+        -0.043338749999999995,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f5"
+    },
+    {
+      "key_id": "f6",
+      "label": "F6",
+      "browser_code": "F6",
+      "row": 0,
+      "layout_rect_units": [
+        6.9,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        12.451827000552676,
+        0.6463382595336982
+      ],
+      "contact_sample_spread_reference": 0.12311171112860056,
+      "center": [
+        -0.024288749999999998,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f6"
+    },
+    {
+      "key_id": "f7",
+      "label": "F7",
+      "browser_code": "F7",
+      "row": 0,
+      "layout_rect_units": [
+        7.9,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        14.836402533029922,
+        0.6787417933217395
+      ],
+      "contact_sample_spread_reference": 0.11928583243050006,
+      "center": [
+        -0.0052387499999999865,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f7"
+    },
+    {
+      "key_id": "f8",
+      "label": "F8",
+      "browser_code": "F8",
+      "row": 0,
+      "layout_rect_units": [
+        8.9,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        16.32056463690158,
+        0.9078649136088712
+      ],
+      "contact_sample_spread_reference": 0.12384735677109386,
+      "center": [
+        0.013811249999999997,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f8"
+    },
+    {
+      "key_id": "f9",
+      "label": "F9",
+      "browser_code": "F9",
+      "row": 0,
+      "layout_rect_units": [
+        10.15,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        18.86636225339026,
+        0.7331545103496532
+      ],
+      "contact_sample_spread_reference": 0.2123948344396754,
+      "center": [
+        0.03762375000000001,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f9"
+    },
+    {
+      "key_id": "f10",
+      "label": "F10",
+      "browser_code": "F10",
+      "row": 0,
+      "layout_rect_units": [
+        11.15,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        20.55285532452239,
+        0.3132481360133861
+      ],
+      "contact_sample_spread_reference": 0.13961293961268154,
+      "center": [
+        0.056673749999999995,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f10"
+    },
+    {
+      "key_id": "f11",
+      "label": "F11",
+      "browser_code": "F11",
+      "row": 0,
+      "layout_rect_units": [
+        12.15,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        22.549563106232043,
+        0.670527702943862
+      ],
+      "contact_sample_spread_reference": 0.016616887729534822,
+      "center": [
+        0.07572375,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f11"
+    },
+    {
+      "key_id": "f12",
+      "label": "F12",
+      "browser_code": "F12",
+      "row": 0,
+      "layout_rect_units": [
+        13.15,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "function",
+      "contact_center_reference": [
+        24.21486108971546,
+        0.527592809712373
+      ],
+      "contact_sample_spread_reference": 0.03753495344126634,
+      "center": [
+        0.09477374999999999,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:f12"
+    },
+    {
+      "key_id": "delete_top_right",
+      "label": "Del",
+      "browser_code": "Delete",
+      "row": 0,
+      "layout_rect_units": [
+        14.5,
+        0.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "accent",
+      "contact_center_reference": [
+        26.117613942930518,
+        0.15434247550708033
+      ],
+      "contact_sample_spread_reference": 0.1968053594867898,
+      "center": [
+        0.12049125,
+        0.01025,
+        -0.05762625
+      ],
+      "node_name": "key:delete_top_right"
+    },
+    {
+      "key_id": "backquote",
+      "label": "`",
+      "browser_code": "Backquote",
+      "row": 1,
+      "layout_rect_units": [
+        0.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        -0.11283094891265354,
+        3.2308600233739537
+      ],
+      "contact_sample_spread_reference": 0.09314900395288771,
+      "center": [
+        -0.15573375,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:backquote"
+    },
+    {
+      "key_id": "digit_1",
+      "label": "1",
+      "browser_code": "Digit1",
+      "row": 1,
+      "layout_rect_units": [
+        1.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        1.872025185982891,
+        3.5450335252963328
+      ],
+      "contact_sample_spread_reference": 0.09743620657125782,
+      "center": [
+        -0.13668375,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_1"
+    },
+    {
+      "key_id": "digit_2",
+      "label": "2",
+      "browser_code": "Digit2",
+      "row": 1,
+      "layout_rect_units": [
+        2.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        3.9262635189814987,
+        3.338001317860067
+      ],
+      "contact_sample_spread_reference": 0.03172692994456838,
+      "center": [
+        -0.11763375000000001,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_2"
+    },
+    {
+      "key_id": "digit_3",
+      "label": "3",
+      "browser_code": "Digit3",
+      "row": 1,
+      "layout_rect_units": [
+        3.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        5.984251911449069,
+        3.364445796624436
+      ],
+      "contact_sample_spread_reference": 0.14567303208340643,
+      "center": [
+        -0.09858375000000001,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_3"
+    },
+    {
+      "key_id": "digit_4",
+      "label": "4",
+      "browser_code": "Digit4",
+      "row": 1,
+      "layout_rect_units": [
+        4.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        7.917634606413806,
+        3.688268507292575
+      ],
+      "contact_sample_spread_reference": 0.1402589831513608,
+      "center": [
+        -0.07953375,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_4"
+    },
+    {
+      "key_id": "digit_5",
+      "label": "5",
+      "browser_code": "Digit5",
+      "row": 1,
+      "layout_rect_units": [
+        5.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        9.941992758138406,
+        3.4767810405768214
+      ],
+      "contact_sample_spread_reference": 0.13902406808342826,
+      "center": [
+        -0.06048375,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_5"
+    },
+    {
+      "key_id": "digit_6",
+      "label": "6",
+      "browser_code": "Digit6",
+      "row": 1,
+      "layout_rect_units": [
+        6.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        11.893459422869375,
+        3.368618420715141
+      ],
+      "contact_sample_spread_reference": 0.12361163213780398,
+      "center": [
+        -0.041433750000000005,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_6"
+    },
+    {
+      "key_id": "digit_7",
+      "label": "7",
+      "browser_code": "Digit7",
+      "row": 1,
+      "layout_rect_units": [
+        7.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        13.835933231999759,
+        3.1622766765049426
+      ],
+      "contact_sample_spread_reference": 0.10920426130932626,
+      "center": [
+        -0.022383750000000008,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_7"
+    },
+    {
+      "key_id": "digit_8",
+      "label": "8",
+      "browser_code": "Digit8",
+      "row": 1,
+      "layout_rect_units": [
+        8.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        15.88192623574155,
+        3.4616502111090024
+      ],
+      "contact_sample_spread_reference": 0.11468229818735187,
+      "center": [
+        -0.0033337499999999964,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_8"
+    },
+    {
+      "key_id": "digit_9",
+      "label": "9",
+      "browser_code": "Digit9",
+      "row": 1,
+      "layout_rect_units": [
+        9.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        17.807132606675705,
+        3.335437001230711
+      ],
+      "contact_sample_spread_reference": 0.15726592481204182,
+      "center": [
+        0.015716249999999987,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_9"
+    },
+    {
+      "key_id": "digit_0",
+      "label": "0",
+      "browser_code": "Digit0",
+      "row": 1,
+      "layout_rect_units": [
+        10.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        19.46862149990539,
+        3.3153857828681774
+      ],
+      "contact_sample_spread_reference": 0.325821827191048,
+      "center": [
+        0.03476625,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:digit_0"
+    },
+    {
+      "key_id": "minus",
+      "label": "-",
+      "browser_code": "Minus",
+      "row": 1,
+      "layout_rect_units": [
+        11.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        21.376865018329767,
+        3.2650082038436863
+      ],
+      "contact_sample_spread_reference": 0.11744794519859025,
+      "center": [
+        0.05381625000000001,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:minus"
+    },
+    {
+      "key_id": "equal",
+      "label": "=",
+      "browser_code": "Equal",
+      "row": 1,
+      "layout_rect_units": [
+        12.0,
+        1.15,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        23.364624865972637,
+        3.3143556076166467
+      ],
+      "contact_sample_spread_reference": 0.1348076703161567,
+      "center": [
+        0.07286625,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:equal"
+    },
+    {
+      "key_id": "backspace",
+      "label": "Back",
+      "browser_code": "Backspace",
+      "row": 1,
+      "layout_rect_units": [
+        13.0,
+        1.15,
+        2.0,
+        1.0
+      ],
+      "size": [
+        0.0359,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        26.38455343001744,
+        3.3700906438050815
+      ],
+      "contact_sample_spread_reference": 0.16203050290457266,
+      "center": [
+        0.10144124999999998,
+        0.01025,
+        -0.035718749999999994
+      ],
+      "node_name": "key:backspace"
+    },
+    {
+      "key_id": "home",
+      "label": "Home",
+      "browser_code": "Home",
+      "row": 1,
+      "layout_rect_units": [
+        16.35,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        29.15313791283688,
+        2.985888883991003
+      ],
+      "contact_sample_spread_reference": 0.06892348210545407,
+      "center": [
+        0.15573375000000006,
+        0.01025,
+        -0.03857624999999999
+      ],
+      "node_name": "key:home"
+    },
+    {
+      "key_id": "tab",
+      "label": "Tab",
+      "browser_code": "Tab",
+      "row": 2,
+      "layout_rect_units": [
+        0.0,
+        2.3,
+        1.5,
+        1.0
+      ],
+      "size": [
+        0.026375000000000003,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        0.5391485261872211,
+        5.633794867464828
+      ],
+      "contact_sample_spread_reference": 0.3229261438665431,
+      "center": [
+        -0.15097125,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:tab"
+    },
+    {
+      "key_id": "key_q",
+      "label": "Q",
+      "browser_code": "KeyQ",
+      "row": 2,
+      "layout_rect_units": [
+        1.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        2.896619422305933,
+        5.193027597813797
+      ],
+      "contact_sample_spread_reference": 0.09228663422464622,
+      "center": [
+        -0.12715875000000001,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_q"
+    },
+    {
+      "key_id": "key_w",
+      "label": "W",
+      "browser_code": "KeyW",
+      "row": 2,
+      "layout_rect_units": [
+        2.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        5.272116884973493,
+        5.077177885203545
+      ],
+      "contact_sample_spread_reference": 0.08959221410344576,
+      "center": [
+        -0.10810875,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_w"
+    },
+    {
+      "key_id": "key_e",
+      "label": "E",
+      "browser_code": "KeyE",
+      "row": 2,
+      "layout_rect_units": [
+        3.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        7.134792118742591,
+        4.637971196019619
+      ],
+      "contact_sample_spread_reference": 0.09371029113882584,
+      "center": [
+        -0.08905875,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_e"
+    },
+    {
+      "key_id": "key_r",
+      "label": "R",
+      "browser_code": "KeyR",
+      "row": 2,
+      "layout_rect_units": [
+        4.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        8.938644328174323,
+        5.2006372057680865
+      ],
+      "contact_sample_spread_reference": 0.10571736269799543,
+      "center": [
+        -0.07000875000000001,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_r"
+    },
+    {
+      "key_id": "key_t",
+      "label": "T",
+      "browser_code": "KeyT",
+      "row": 2,
+      "layout_rect_units": [
+        5.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        11.04610224693886,
+        5.1103100410914815
+      ],
+      "contact_sample_spread_reference": 0.06777324590196887,
+      "center": [
+        -0.05095875,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_t"
+    },
+    {
+      "key_id": "key_y",
+      "label": "Y",
+      "browser_code": "KeyY",
+      "row": 2,
+      "layout_rect_units": [
+        6.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        13.052761244819841,
+        5.1088316752560194
+      ],
+      "contact_sample_spread_reference": 0.06343342093571817,
+      "center": [
+        -0.031908750000000013,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_y"
+    },
+    {
+      "key_id": "key_u",
+      "label": "U",
+      "browser_code": "KeyU",
+      "row": 2,
+      "layout_rect_units": [
+        7.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        15.143807461512544,
+        5.111276634586205
+      ],
+      "contact_sample_spread_reference": 0.17895193959495626,
+      "center": [
+        -0.012858750000000002,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_u"
+    },
+    {
+      "key_id": "key_i",
+      "label": "I",
+      "browser_code": "KeyI",
+      "row": 2,
+      "layout_rect_units": [
+        8.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        16.754768745922156,
+        5.29911976581203
+      ],
+      "contact_sample_spread_reference": 0.11075105858681904,
+      "center": [
+        0.006191250000000009,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_i"
+    },
+    {
+      "key_id": "key_o",
+      "label": "O",
+      "browser_code": "KeyO",
+      "row": 2,
+      "layout_rect_units": [
+        9.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        18.980780791368588,
+        5.219685888287209
+      ],
+      "contact_sample_spread_reference": 0.07908355159420578,
+      "center": [
+        0.025241249999999993,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_o"
+    },
+    {
+      "key_id": "key_p",
+      "label": "P",
+      "browser_code": "KeyP",
+      "row": 2,
+      "layout_rect_units": [
+        10.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        20.702212039025568,
+        5.172479228998668
+      ],
+      "contact_sample_spread_reference": 0.13297382261435337,
+      "center": [
+        0.044291250000000004,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:key_p"
+    },
+    {
+      "key_id": "left_bracket",
+      "label": "[",
+      "browser_code": "BracketLeft",
+      "row": 2,
+      "layout_rect_units": [
+        11.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        22.67427950697193,
+        5.329733992350393
+      ],
+      "contact_sample_spread_reference": 0.36746213940538014,
+      "center": [
+        0.06334125000000002,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:left_bracket"
+    },
+    {
+      "key_id": "right_bracket",
+      "label": "]",
+      "browser_code": "BracketRight",
+      "row": 2,
+      "layout_rect_units": [
+        12.5,
+        2.3,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        24.786968600013495,
+        5.123608811608634
+      ],
+      "contact_sample_spread_reference": 0.3339774725845359,
+      "center": [
+        0.08239125,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:right_bracket"
+    },
+    {
+      "key_id": "backslash",
+      "label": "\\",
+      "browser_code": "Backslash",
+      "row": 2,
+      "layout_rect_units": [
+        13.5,
+        2.3,
+        1.5,
+        1.0
+      ],
+      "size": [
+        0.026375000000000003,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        26.992482560390012,
+        5.5302803081124745
+      ],
+      "contact_sample_spread_reference": 0.24833280982764935,
+      "center": [
+        0.10620374999999999,
+        0.01025,
+        -0.013811249999999997
+      ],
+      "node_name": "key:backslash"
+    },
+    {
+      "key_id": "end",
+      "label": "End",
+      "browser_code": "End",
+      "row": 2,
+      "layout_rect_units": [
+        16.35,
+        2.25,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        30.02727529241398,
+        5.282864623631361
+      ],
+      "contact_sample_spread_reference": 0.11685962106104508,
+      "center": [
+        0.15573375000000006,
+        0.01025,
+        -0.014763749999999992
+      ],
+      "node_name": "key:end"
+    },
+    {
+      "key_id": "caps_lock",
+      "label": "Caps",
+      "browser_code": "CapsLock",
+      "row": 3,
+      "layout_rect_units": [
+        0.0,
+        3.45,
+        1.75,
+        1.0
+      ],
+      "size": [
+        0.0311375,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        1.066293999235761,
+        7.682525102321327
+      ],
+      "contact_sample_spread_reference": 0.09874496372909647,
+      "center": [
+        -0.14859,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:caps_lock"
+    },
+    {
+      "key_id": "key_a",
+      "label": "A",
+      "browser_code": "KeyA",
+      "row": 3,
+      "layout_rect_units": [
+        1.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        3.535515238217971,
+        7.462516544720602
+      ],
+      "contact_sample_spread_reference": 0.07745490859032225,
+      "center": [
+        -0.12239625000000001,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:key_a"
+    },
+    {
+      "key_id": "key_s",
+      "label": "S",
+      "browser_code": "KeyS",
+      "row": 3,
+      "layout_rect_units": [
+        2.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        5.631127330244263,
+        7.457045820191886
+      ],
+      "contact_sample_spread_reference": 0.08567156970712508,
+      "center": [
+        -0.10334625,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:key_s"
+    },
+    {
+      "key_id": "key_d",
+      "label": "D",
+      "browser_code": "KeyD",
+      "row": 3,
+      "layout_rect_units": [
+        3.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        7.691351354981997,
+        7.231517862369529
+      ],
+      "contact_sample_spread_reference": 0.14429481543091863,
+      "center": [
+        -0.08429625,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:key_d"
+    },
+    {
+      "key_id": "key_f",
+      "label": "F",
+      "browser_code": "KeyF",
+      "row": 3,
+      "layout_rect_units": [
+        4.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        9.66008308998877,
+        6.989971567210817
+      ],
+      "contact_sample_spread_reference": 0.059138629446379154,
+      "center": [
+        -0.06524625,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:key_f"
+    },
+    {
+      "key_id": "key_g",
+      "label": "G",
+      "browser_code": "KeyG",
+      "row": 3,
+      "layout_rect_units": [
+        5.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        11.789461973980194,
+        6.994914037567303
+      ],
+      "contact_sample_spread_reference": 0.07328962794678606,
+      "center": [
+        -0.04619625000000001,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:key_g"
+    },
+    {
+      "key_id": "key_h",
+      "label": "H",
+      "browser_code": "KeyH",
+      "row": 3,
+      "layout_rect_units": [
+        6.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        13.46787563551279,
+        6.992547253042132
+      ],
+      "contact_sample_spread_reference": 0.165255551420288,
+      "center": [
+        -0.02714625000000001,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:key_h"
+    },
+    {
+      "key_id": "key_j",
+      "label": "J",
+      "browser_code": "KeyJ",
+      "row": 3,
+      "layout_rect_units": [
+        7.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        15.486173035966129,
+        7.048177443988235
+      ],
+      "contact_sample_spread_reference": 0.1577778553228112,
+      "center": [
+        -0.00809625,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:key_j"
+    },
+    {
+      "key_id": "key_k",
+      "label": "K",
+      "browser_code": "KeyK",
+      "row": 3,
+      "layout_rect_units": [
+        8.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        17.582710354954934,
+        7.132616432547292
+      ],
+      "contact_sample_spread_reference": 0.17984957461540585,
+      "center": [
+        0.010953750000000012,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:key_k"
+    },
+    {
+      "key_id": "key_l",
+      "label": "L",
+      "browser_code": "KeyL",
+      "row": 3,
+      "layout_rect_units": [
+        9.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        19.30451325380949,
+        7.213246032836015
+      ],
+      "contact_sample_spread_reference": 0.03424915571108616,
+      "center": [
+        0.030003749999999996,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:key_l"
+    },
+    {
+      "key_id": "semicolon",
+      "label": ";",
+      "browser_code": "Semicolon",
+      "row": 3,
+      "layout_rect_units": [
+        10.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        21.359895363642167,
+        7.122759581144613
+      ],
+      "contact_sample_spread_reference": 0.2532964478629415,
+      "center": [
+        0.04905375000000001,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:semicolon"
+    },
+    {
+      "key_id": "quote",
+      "label": "'",
+      "browser_code": "Quote",
+      "row": 3,
+      "layout_rect_units": [
+        11.75,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        23.038472002076936,
+        6.810707849197162
+      ],
+      "contact_sample_spread_reference": 0.14582802933801403,
+      "center": [
+        0.06810374999999999,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:quote"
+    },
+    {
+      "key_id": "enter",
+      "label": "Enter",
+      "browser_code": "Enter",
+      "row": 3,
+      "layout_rect_units": [
+        12.75,
+        3.45,
+        2.25,
+        1.0
+      ],
+      "size": [
+        0.040662500000000004,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        25.853435192091016,
+        7.33060951875408
+      ],
+      "contact_sample_spread_reference": 0.1957853476078668,
+      "center": [
+        0.09905999999999998,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:enter"
+    },
+    {
+      "key_id": "page_up",
+      "label": "PgUp",
+      "browser_code": "PageUp",
+      "row": 3,
+      "layout_rect_units": [
+        16.35,
+        3.45,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        29.31167661193851,
+        6.217354117105838
+      ],
+      "contact_sample_spread_reference": 0.2768851751038237,
+      "center": [
+        0.15573375000000006,
+        0.01025,
+        0.008096250000000013
+      ],
+      "node_name": "key:page_up"
+    },
+    {
+      "key_id": "left_shift",
+      "label": "Shift",
+      "browser_code": "ShiftLeft",
+      "row": 4,
+      "layout_rect_units": [
+        0.0,
+        4.6,
+        2.25,
+        1.0
+      ],
+      "size": [
+        0.040662500000000004,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        0.28794256360827963,
+        10.551853417485153
+      ],
+      "contact_sample_spread_reference": 0.29825412962470577,
+      "center": [
+        -0.1438275,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:left_shift"
+    },
+    {
+      "key_id": "key_z",
+      "label": "Z",
+      "browser_code": "KeyZ",
+      "row": 4,
+      "layout_rect_units": [
+        2.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        4.5786846863005435,
+        9.533342239533198
+      ],
+      "contact_sample_spread_reference": 0.289244964116984,
+      "center": [
+        -0.11287125,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:key_z"
+    },
+    {
+      "key_id": "key_x",
+      "label": "X",
+      "browser_code": "KeyX",
+      "row": 4,
+      "layout_rect_units": [
+        3.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        6.5902308622977115,
+        9.544218335627038
+      ],
+      "contact_sample_spread_reference": 0.05211206981796917,
+      "center": [
+        -0.09382125000000001,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:key_x"
+    },
+    {
+      "key_id": "key_c",
+      "label": "C",
+      "browser_code": "KeyC",
+      "row": 4,
+      "layout_rect_units": [
+        4.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        8.274882134825475,
+        9.534981756748081
+      ],
+      "contact_sample_spread_reference": 0.17886589909012443,
+      "center": [
+        -0.07477125000000001,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:key_c"
+    },
+    {
+      "key_id": "key_v",
+      "label": "V",
+      "browser_code": "KeyV",
+      "row": 4,
+      "layout_rect_units": [
+        5.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        10.518426193967471,
+        9.827109128619975
+      ],
+      "contact_sample_spread_reference": 0.1263996230648654,
+      "center": [
+        -0.05572125,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:key_v"
+    },
+    {
+      "key_id": "key_b",
+      "label": "B",
+      "browser_code": "KeyB",
+      "row": 4,
+      "layout_rect_units": [
+        6.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        12.708161052152878,
+        9.590213324745939
+      ],
+      "contact_sample_spread_reference": 0.12902127513030237,
+      "center": [
+        -0.036671250000000016,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:key_b"
+    },
+    {
+      "key_id": "key_n",
+      "label": "N",
+      "browser_code": "KeyN",
+      "row": 4,
+      "layout_rect_units": [
+        7.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        14.680102996386664,
+        9.438172476837485
+      ],
+      "contact_sample_spread_reference": 0.1140292045757774,
+      "center": [
+        -0.017621250000000005,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:key_n"
+    },
+    {
+      "key_id": "key_m",
+      "label": "M",
+      "browser_code": "KeyM",
+      "row": 4,
+      "layout_rect_units": [
+        8.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        16.71873806242925,
+        9.613774884152122
+      ],
+      "contact_sample_spread_reference": 0.2893867464187392,
+      "center": [
+        0.0014287500000000064,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:key_m"
+    },
+    {
+      "key_id": "comma",
+      "label": ",",
+      "browser_code": "Comma",
+      "row": 4,
+      "layout_rect_units": [
+        9.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        18.760685323107403,
+        9.484617381069121
+      ],
+      "contact_sample_spread_reference": 0.15297943710490003,
+      "center": [
+        0.02047874999999999,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:comma"
+    },
+    {
+      "key_id": "period",
+      "label": ".",
+      "browser_code": "Period",
+      "row": 4,
+      "layout_rect_units": [
+        10.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        20.53251918413485,
+        9.850590570656122
+      ],
+      "contact_sample_spread_reference": 0.08139625366135657,
+      "center": [
+        0.03952875,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:period"
+    },
+    {
+      "key_id": "slash",
+      "label": "/",
+      "browser_code": "Slash",
+      "row": 4,
+      "layout_rect_units": [
+        11.25,
+        4.6,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "standard",
+      "contact_center_reference": [
+        22.37397403498298,
+        9.20621367385419
+      ],
+      "contact_sample_spread_reference": 0.07164183177217068,
+      "center": [
+        0.05857875000000001,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:slash"
+    },
+    {
+      "key_id": "right_shift",
+      "label": "Shift",
+      "browser_code": "ShiftRight",
+      "row": 4,
+      "layout_rect_units": [
+        12.25,
+        4.6,
+        1.85,
+        1.0
+      ],
+      "size": [
+        0.0330425,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        25.30431669629637,
+        10.266127098616183
+      ],
+      "contact_sample_spread_reference": 0.17651760357119448,
+      "center": [
+        0.085725,
+        0.01025,
+        0.030003749999999996
+      ],
+      "node_name": "key:right_shift"
+    },
+    {
+      "key_id": "arrow_up",
+      "label": "↑",
+      "browser_code": "ArrowUp",
+      "row": 4,
+      "layout_rect_units": [
+        15.05,
+        4.8,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "accent",
+      "contact_center_reference": [
+        27.930418466782896,
+        9.44524701561066
+      ],
+      "contact_sample_spread_reference": 0.06818836674946382,
+      "center": [
+        0.13096875000000002,
+        0.01025,
+        0.033813750000000004
+      ],
+      "node_name": "key:arrow_up"
+    },
+    {
+      "key_id": "page_down",
+      "label": "PgDn",
+      "browser_code": "PageDown",
+      "row": 4,
+      "layout_rect_units": [
+        16.35,
+        4.65,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        30.45128480739476,
+        9.897684206768472
+      ],
+      "contact_sample_spread_reference": 0.15069660846848226,
+      "center": [
+        0.15573375000000006,
+        0.01025,
+        0.03095625000000002
+      ],
+      "node_name": "key:page_down"
+    },
+    {
+      "key_id": "left_control",
+      "label": "Ctrl",
+      "browser_code": "ControlLeft",
+      "row": 5,
+      "layout_rect_units": [
+        0.0,
+        5.75,
+        1.25,
+        1.0
+      ],
+      "size": [
+        0.0216125,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        -0.5286106481055652,
+        12.597678221865731
+      ],
+      "contact_sample_spread_reference": 0.21633810515290008,
+      "center": [
+        -0.1533525,
+        0.01025,
+        0.051911250000000006
+      ],
+      "node_name": "key:left_control"
+    },
+    {
+      "key_id": "left_meta",
+      "label": "Win",
+      "browser_code": "MetaLeft",
+      "row": 5,
+      "layout_rect_units": [
+        1.25,
+        5.75,
+        1.25,
+        1.0
+      ],
+      "size": [
+        0.0216125,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        2.4879421930385766,
+        12.066416410593819
+      ],
+      "contact_sample_spread_reference": 0.1365836872340106,
+      "center": [
+        -0.12954000000000002,
+        0.01025,
+        0.051911250000000006
+      ],
+      "node_name": "key:left_meta"
+    },
+    {
+      "key_id": "left_alt",
+      "label": "Alt",
+      "browser_code": "AltLeft",
+      "row": 5,
+      "layout_rect_units": [
+        2.5,
+        5.75,
+        1.25,
+        1.0
+      ],
+      "size": [
+        0.0216125,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        4.544215071522564,
+        12.202361786119747
+      ],
+      "contact_sample_spread_reference": 0.07807373786171734,
+      "center": [
+        -0.1057275,
+        0.01025,
+        0.051911250000000006
+      ],
+      "node_name": "key:left_alt"
+    },
+    {
+      "key_id": "space",
+      "label": "Space",
+      "browser_code": "Space",
+      "row": 5,
+      "layout_rect_units": [
+        3.75,
+        5.75,
+        6.25,
+        1.0
+      ],
+      "size": [
+        0.11686250000000001,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        12.768240084717272,
+        13.097532638366712
+      ],
+      "contact_sample_spread_reference": 0.09190223403799021,
+      "center": [
+        -0.034290000000000015,
+        0.01025,
+        0.051911250000000006
+      ],
+      "node_name": "key:space"
+    },
+    {
+      "key_id": "right_alt",
+      "label": "Alt",
+      "browser_code": "AltRight",
+      "row": 5,
+      "layout_rect_units": [
+        10.0,
+        5.75,
+        1.25,
+        1.0
+      ],
+      "size": [
+        0.0216125,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        20.288270466954508,
+        12.63531166013075
+      ],
+      "contact_sample_spread_reference": 0.08327686113661185,
+      "center": [
+        0.0371475,
+        0.01025,
+        0.051911250000000006
+      ],
+      "node_name": "key:right_alt"
+    },
+    {
+      "key_id": "function_layer",
+      "label": "Func",
+      "browser_code": "Fn",
+      "row": 5,
+      "layout_rect_units": [
+        11.25,
+        5.75,
+        1.25,
+        1.0
+      ],
+      "size": [
+        0.0216125,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        22.197040930263615,
+        12.344219623875604
+      ],
+      "contact_sample_spread_reference": 0.1564714164526474,
+      "center": [
+        0.060960000000000014,
+        0.01025,
+        0.051911250000000006
+      ],
+      "node_name": "key:function_layer"
+    },
+    {
+      "key_id": "right_control",
+      "label": "Ctrl",
+      "browser_code": "ControlRight",
+      "row": 5,
+      "layout_rect_units": [
+        12.5,
+        5.75,
+        1.25,
+        1.0
+      ],
+      "size": [
+        0.0216125,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "modifier",
+      "contact_center_reference": [
+        24.32632854620423,
+        12.224010228619447
+      ],
+      "contact_sample_spread_reference": 0.07916652499161271,
+      "center": [
+        0.08477250000000003,
+        0.01025,
+        0.051911250000000006
+      ],
+      "node_name": "key:right_control"
+    },
+    {
+      "key_id": "arrow_left",
+      "label": "←",
+      "browser_code": "ArrowLeft",
+      "row": 5,
+      "layout_rect_units": [
+        13.9,
+        6.05,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "accent",
+      "contact_center_reference": [
+        26.77366064731798,
+        12.4222561077599
+      ],
+      "contact_sample_spread_reference": 0.15464083789959027,
+      "center": [
+        0.10906125,
+        0.01025,
+        0.057626250000000004
+      ],
+      "node_name": "key:arrow_left"
+    },
+    {
+      "key_id": "arrow_down",
+      "label": "↓",
+      "browser_code": "ArrowDown",
+      "row": 5,
+      "layout_rect_units": [
+        15.05,
+        6.05,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "accent",
+      "contact_center_reference": [
+        28.840085188876756,
+        12.363183490002706
+      ],
+      "contact_sample_spread_reference": 0.1789578981509443,
+      "center": [
+        0.13096875000000002,
+        0.01025,
+        0.057626250000000004
+      ],
+      "node_name": "key:arrow_down"
+    },
+    {
+      "key_id": "arrow_right",
+      "label": "→",
+      "browser_code": "ArrowRight",
+      "row": 5,
+      "layout_rect_units": [
+        16.2,
+        6.05,
+        1.0,
+        1.0
+      ],
+      "size": [
+        0.01685,
+        0.0105,
+        0.01685
+      ],
+      "material_style": "accent",
+      "contact_center_reference": [
+        31.043963483773783,
+        12.68595564774504
+      ],
+      "contact_sample_spread_reference": 0.06775508329238564,
+      "center": [
+        0.15287625,
+        0.01025,
+        0.057626250000000004
+      ],
+      "node_name": "key:arrow_right"
+    }
+  ]
+}

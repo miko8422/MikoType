@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VR Desk Vision · Production Inspector</title>
+    <link rel="stylesheet" href="/static/style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">PRODUCTION INSPECTOR · DEVELOPMENT ONLY</p>
+        <h1>实体键盘映射</h1>
+        <p class="subtitle">同帧手部追踪、ArUco 参考坐标、Contact Map 与自适应 3D 键盘</p>
+      </div>
+      <div class="status-cluster">
+        <span id="overall-status" class="badge waiting">等待状态</span>
+        <span id="frame-id" class="mono">Frame —</span>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel camera-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">SAME-FRAME SOURCE</p>
+            <h2>摄像头与指尖</h2>
+          </div>
+          <span id="pose-status" class="badge waiting">键盘未定位</span>
+        </div>
+        <div id="viewport" class="viewport">
+          <img id="camera" alt="Mac camera preview" />
+          <canvas id="overlay"></canvas>
+          <div id="empty-message" class="empty-message">正在等待生产视频流…</div>
+        </div>
+        <p class="notice">绿色为最可能接触的键位，较暗颜色为邻近候选；它们不是机械按键事件。</p>
+      </section>
+
+      <section class="panel metrics-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">LIVE QUALITY</p>
+            <h2>运行指标</h2>
+          </div>
+        </div>
+        <div class="metrics-grid">
+          <article><span>采集 FPS</span><strong id="capture-fps">—</strong></article>
+          <article><span>帧龄</span><strong id="frame-age">—</strong></article>
+          <article><span>手部推理</span><strong id="hand-ms">—</strong></article>
+          <article><span>键盘推理</span><strong id="keyboard-ms">—</strong></article>
+          <article><span>Marker</span><strong id="marker-count">—</strong></article>
+          <article><span>Pose confidence</span><strong id="pose-confidence">—</strong></article>
+        </div>
+        <dl class="details">
+          <div><dt>手</dt><dd id="hand-count">0</dd></div>
+          <div><dt>指尖 Bubble</dt><dd id="fingertip-count">0</dd></div>
+          <div><dt>高亮键</dt><dd id="highlight-count">0</dd></div>
+          <div><dt>状态</dt><dd id="diagnostic-status">—</dd></div>
+          <div><dt>模型 revision</dt><dd id="model-revision" class="mono">—</dd></div>
+          <div><dt>Contact Map</dt><dd id="contact-revision" class="mono">—</dd></div>
+        </dl>
+        <p id="runtime-error" class="error" hidden></p>
+      </section>
+
+      <section class="panel model-panel">
+        <div class="panel-heading">
+          <div>
+            <p class="eyebrow">ADAPTIVE MODEL · PHYSICAL KEY IDs</p>
+            <h2>用户自适应 3D 键盘状态</h2>
+          </div>
+          <a class="button" href="/api/model/keyboard.glb" download>下载 GLB</a>
+        </div>
+        <div class="keyboard-stage">
+          <div id="keyboard-plane" class="keyboard-plane" aria-label="Adaptive keyboard key-state view"></div>
+        </div>
+        <div class="legend">
+          <span><i class="swatch direct"></i>首选候选</span>
+          <span><i class="swatch neighbor"></i>邻近弱光</span>
+          <span><i class="swatch idle"></i>无候选</span>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <span>SceneState 0.2</span>
+      <span>latest-frame-only</span>
+      <span>调试界面不参与 SteamVR 运行时</span>
+    </footer>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VR Desk Vision · Keyboard Setup</title>
+    <link rel="stylesheet" href="/static/setup.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">PRODUCTION SETUP MODE</p>
+        <h1>键盘布局与触点校准</h1>
+        <p>设置过程写入 staging；点击“应用生产 Bundle”后才会替换运行产物，并要求重启实时服务。</p>
+      </div>
+      <a href="/">返回运行检查器</a>
+    </header>
+
+    <nav>
+      <button class="tab active" data-panel="layout-panel">1 · 键位布局</button>
+      <button class="tab" data-panel="calibration-panel">2 · Marker 与触点</button>
+    </nav>
+
+    <main>
+      <section id="layout-panel" class="panel active">
+        <div class="card board-card">
+          <div class="card-title"><h2>用户键位图</h2><span id="layout-revision" class="mono">—</span></div>
+          <svg id="keyboard-svg" aria-label="可编辑键盘布局"></svg>
+          <p class="hint">拖动键帽调整位置；键位清单和校准顺序保持不变。</p>
+        </div>
+        <aside class="card editor-card">
+          <h2 id="selected-title">请选择键位</h2>
+          <p id="selected-id" class="mono">—</p>
+          <div class="field-grid">
+            <label>X <input id="x-input" type="number" step="0.01" /></label>
+            <label>Y <input id="y-input" type="number" step="0.01" /></label>
+            <label>W <input id="w-input" type="number" step="0.01" min="0.1" /></label>
+            <label>H <input id="h-input" type="number" step="0.01" min="0.1" /></label>
+          </div>
+          <div class="button-row"><button id="save-layout" class="primary">保存 staging Layout</button></div>
+          <p id="layout-message" class="message"></p>
+        </aside>
+      </section>
+
+      <section id="calibration-panel" class="panel">
+        <div class="card camera-card">
+          <div class="card-title"><h2>同帧校准画面</h2><span id="calibration-status">等待开始</span></div>
+          <div class="viewport"><img src="/stream.mjpg" alt="Calibration camera" /></div>
+          <p class="hint">画面仅用于观察。触点保存使用严格同帧的原始帧、手部结果和 Marker pose。</p>
+        </div>
+        <div class="card actions-card">
+          <h2>Anchor Reference</h2>
+          <div class="button-row">
+            <button id="start-anchor">开始/继续注册</button>
+            <button id="reset-anchor">重新注册</button>
+            <button id="finalize-anchor" class="primary">锁定 Anchor</button>
+          </div>
+          <div id="anchor-progress" class="progress-list"></div>
+          <h3>DICT_4X4_50 定位块</h3>
+          <div id="markers" class="markers"></div>
+
+          <hr />
+          <h2>每键五次右食指触点</h2>
+          <div class="contact-current">
+            <strong id="current-key">—</strong>
+            <span id="contact-progress">尚未开始</span>
+          </div>
+          <div class="button-row">
+            <button id="start-contact">开始/恢复</button>
+            <button id="capture-contact" class="primary">3 秒后采样</button>
+            <button id="undo-contact">撤销一次</button>
+          </div>
+          <div class="button-row">
+            <button id="reset-contact" class="danger">重置触点草稿</button>
+            <button id="apply-bundle" class="apply">应用生产 Bundle</button>
+          </div>
+          <p id="setup-message" class="message"></p>
+        </div>
+      </section>
+    </main>
+    <script src="/static/setup.js"></script>
+  </body>
+</html>

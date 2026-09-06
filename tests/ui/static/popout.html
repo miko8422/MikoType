@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VR Desk Vision · Low-Latency Viewer</title>
+    <link rel="stylesheet" href="/static/style.css?v=2" />
+  </head>
+  <body class="popout-body">
+    <main class="popout-shell">
+      <header class="popout-header">
+        <div>
+          <p class="eyebrow">VR DESK VISION / ISOLATED PREVIEW</p>
+          <h1>Low-Latency Viewer</h1>
+        </div>
+        <span id="preview-state" class="popout-state">connecting</span>
+      </header>
+      <div class="popout-viewport">
+        <canvas id="frame-canvas" aria-label="Latest low-latency frame"></canvas>
+        <div id="frame-placeholder">等待测试帧…</div>
+      </div>
+      <section class="popout-metrics" aria-label="Preview metrics">
+        <span>Display FPS <strong id="display-fps">—</strong></span>
+        <span>Est. display latency <strong id="display-latency">—</strong></span>
+        <span>Capture→server-ready <strong id="transport-latency">—</strong></span>
+        <span>Frame <strong id="display-frame-id">—</strong></span>
+        <span>Dropped <strong id="dropped-display">—</strong></span>
+      </section>
+      <a class="popout-back" href="/">Back to dashboard</a>
+    </main>
+    <script src="/static/low-latency.js?v=2"></script>
+    <script src="/static/popout.js?v=2"></script>
+  </body>
+</html>
