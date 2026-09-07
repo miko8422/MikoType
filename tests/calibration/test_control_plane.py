@@ -94,6 +94,55 @@ def test_setup_router_exposes_layout_and_marker_without_upload(tmp_path: Path) -
     assert client.post("/api/setup/contact/start", json={}).status_code == 409
 
 
+def test_unavailable_setup_workspace_does_not_block_page_construction(
+    tmp_path: Path,
+) -> None:
+    blocked_parent = tmp_path / "not-a-directory"
+    blocked_parent.write_text("occupied", encoding="utf-8")
+    controller = KeyboardSetupController(
+        active_artifacts=_active_bundle(tmp_path),
+        camera_config=CameraConfig(),
+        frames=LatestFrameStore(),
+        states=LatestSceneStateStore(),
+        workspace=SetupWorkspace(blocked_parent / "setup"),
+    )
+    app = FastAPI()
+    app.include_router(create_setup_router(controller))
+    client = TestClient(app)
+
+    assert client.get("/setup").status_code == 200
+    response = client.get("/api/setup/layout")
+    assert response.status_code == 503
+    assert "workspace is unavailable" in response.json()["detail"]
+
+
+def test_setup_workspace_cannot_overlap_active_keyboard_bundle(
+    tmp_path: Path,
+) -> None:
+    active = _active_bundle(tmp_path)
+    production_before = {
+        path: path.read_bytes()
+        for path in (
+            active.layout_profile,
+            active.anchor_reference,
+            active.contact_map,
+            active.model_glb,
+            active.model_manifest,
+        )
+    }
+
+    with pytest.raises(ValueError, match="separate from production artifacts"):
+        KeyboardSetupController(
+            active_artifacts=active,
+            camera_config=CameraConfig(),
+            frames=LatestFrameStore(),
+            states=LatestSceneStateStore(),
+            workspace=SetupWorkspace(active.layout_profile.parent),
+        )
+
+    assert {path: path.read_bytes() for path in production_before} == production_before
+
+
 def test_finalized_staging_bundle_applies_atomically(tmp_path: Path) -> None:
     controller = _controller(tmp_path)
     save_anchor_reference(
@@ -154,6 +203,9 @@ def test_setup_script_serializes_actions_and_cancels_capture_countdown() -> None
     assert 'event.key==="Escape"' in script
     assert 'window.addEventListener("blur",cancelCaptureCountdown)' in script
     assert 'document.addEventListener("visibilitychange"' in script
+    assert "renderMarkers(profile.anchors)" in script
+    assert "for(let id=0;id<6;id++)" not in script
+    assert 'request("/api/config")' in script
     for action_id in (
         "start-anchor",
         "reset-anchor",

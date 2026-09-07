@@ -24,6 +24,11 @@ def create_setup_router(controller: KeyboardSetupController) -> APIRouter:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(
+                status_code=503,
+                detail=f"keyboard setup workspace is unavailable: {exc}",
+            ) from exc
 
     @router.get("/setup", response_class=HTMLResponse)
     def setup_page() -> HTMLResponse:

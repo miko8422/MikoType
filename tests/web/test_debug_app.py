@@ -6,6 +6,7 @@ import cv2
 from fastapi.testclient import TestClient
 import numpy as np
 import pytest
+from starlette.websockets import WebSocketDisconnect
 
 from deskvision.core.models import FramePacket
 from deskvision.observability.health import HealthSnapshot
@@ -18,6 +19,7 @@ from deskvision.web.app import DebugWebContext, create_debug_app
 
 
 pytestmark = pytest.mark.unit
+BASE_URL = "http://127.0.0.1:8765"
 
 
 def _context(tmp_path: Path) -> DebugWebContext:
@@ -60,8 +62,12 @@ def _context(tmp_path: Path) -> DebugWebContext:
     )
 
 
+def _client(context: DebugWebContext) -> TestClient:
+    return TestClient(create_debug_app(context), base_url=BASE_URL)
+
+
 def test_debug_app_exposes_state_health_and_artifacts(tmp_path: Path) -> None:
-    client = TestClient(create_debug_app(_context(tmp_path)))
+    client = _client(_context(tmp_path))
 
     assert client.get("/").status_code == 200
     assert client.get("/api/state").json()["schema_version"] == "0.2"
@@ -88,7 +94,7 @@ def test_snapshot_uses_processed_bundle_not_newer_raw_capture(tmp_path: Path) ->
         )
     )
 
-    response = TestClient(create_debug_app(context)).get("/snapshot.jpg")
+    response = _client(context).get("/snapshot.jpg")
 
     assert response.status_code == 200
     assert response.headers["x-frame-id"] == "1"
@@ -99,9 +105,12 @@ def test_snapshot_uses_processed_bundle_not_newer_raw_capture(tmp_path: Path) ->
 
 def test_bundle_websocket_pairs_metadata_and_exact_jpeg(tmp_path: Path) -> None:
     context = _context(tmp_path)
-    client = TestClient(create_debug_app(context))
+    client = _client(context)
 
-    with client.websocket_connect("/ws/bundle") as websocket:
+    with client.websocket_connect(
+        "/ws/bundle",
+        headers={"Host": "127.0.0.1:8765"},
+    ) as websocket:
         metadata = websocket.receive_json()
         jpeg = websocket.receive_bytes()
 
@@ -126,9 +135,12 @@ def test_bundle_websocket_marks_unchanged_bundle_stale(tmp_path: Path) -> None:
         manifest_path=context.manifest_path,
         bundle_stale_after_ms=25,
     )
-    client = TestClient(create_debug_app(context))
+    client = _client(context)
 
-    with client.websocket_connect("/ws/bundle") as websocket:
+    with client.websocket_connect(
+        "/ws/bundle",
+        headers={"Host": "127.0.0.1:8765"},
+    ) as websocket:
         assert websocket.receive_json()["type"] == "frame_state_bundle"
         websocket.receive_bytes()
         stale = websocket.receive_json()
@@ -140,7 +152,7 @@ def test_bundle_websocket_marks_unchanged_bundle_stale(tmp_path: Path) -> None:
 
 
 def test_inspector_uses_atomic_bundle_socket_instead_of_mjpeg_image(tmp_path: Path) -> None:
-    client = TestClient(create_debug_app(_context(tmp_path)))
+    client = _client(_context(tmp_path))
 
     page = client.get("/").text
     script = client.get("/static/app.js").text
@@ -149,6 +161,8 @@ def test_inspector_uses_atomic_bundle_socket_instead_of_mjpeg_image(tmp_path: Pa
     assert 'id="camera" src="/stream.mjpg"' not in page
     assert "/ws/bundle" in script
     assert "clearLiveDisplay" in script
+    assert 'href="/settings"' in page
+    assert 'href="/setup"' in page
 
 
 def test_debug_app_fails_closed_without_state(tmp_path: Path) -> None:
@@ -166,10 +180,82 @@ def test_debug_app_fails_closed_without_state(tmp_path: Path) -> None:
         bundle_stale_after_ms=context.bundle_stale_after_ms,
     )
 
-    response = TestClient(create_debug_app(context)).get("/api/state")
+    response = _client(context).get("/api/state")
 
     assert response.status_code == 503
     assert response.json()["ready"] is False
+
+
+def test_control_plane_rejects_cross_origin_browser_mutation(tmp_path: Path) -> None:
+    app = create_debug_app(_context(tmp_path))
+
+    @app.post("/mutation-probe")
+    def mutation_probe() -> dict[str, bool]:
+        return {"changed": True}
+
+    client = TestClient(app, base_url=BASE_URL)
+
+    rejected = client.post(
+        "/mutation-probe",
+        headers={"Origin": "https://untrusted.example"},
+    )
+    accepted = client.post(
+        "/mutation-probe",
+        headers={"Origin": BASE_URL},
+    )
+
+    assert rejected.status_code == 403
+    assert accepted.json() == {"changed": True}
+
+
+def test_control_plane_rejects_dns_rebinding_host(tmp_path: Path) -> None:
+    client = _client(_context(tmp_path))
+
+    response = client.get(
+        "/api/service",
+        headers={"Host": "untrusted.example:8765"},
+    )
+
+    assert response.status_code == 403
+    assert response.json()["detail"] == "unexpected local service host"
+
+
+def test_camera_get_rejects_cross_site_embedding_and_sets_resource_policy(
+    tmp_path: Path,
+) -> None:
+    client = _client(_context(tmp_path))
+
+    rejected = client.get(
+        "/snapshot.jpg",
+        headers={
+            "Sec-Fetch-Site": "cross-site",
+            "Sec-Fetch-Mode": "no-cors",
+            "Sec-Fetch-Dest": "image",
+        },
+    )
+    accepted = client.get("/snapshot.jpg")
+
+    assert rejected.status_code == 403
+    assert "cross-site" in rejected.json()["detail"]
+    assert accepted.status_code == 200
+    assert accepted.headers["cross-origin-resource-policy"] == "same-origin"
+    assert accepted.headers["x-frame-options"] == "DENY"
+
+
+def test_bundle_websocket_rejects_cross_origin_browser(tmp_path: Path) -> None:
+    client = _client(_context(tmp_path))
+
+    with pytest.raises(WebSocketDisconnect) as raised:
+        with client.websocket_connect(
+            "/ws/bundle",
+            headers={
+                "Host": "127.0.0.1:8765",
+                "Origin": "https://untrusted.example",
+            },
+        ):
+            pass
+
+    assert raised.value.code == 1008
 
 
 def test_runtime_snapshots_do_not_change_when_bundle_files_are_replaced(
@@ -193,7 +279,7 @@ def test_runtime_snapshots_do_not_change_when_bundle_files_are_replaced(
     base.layout_path.write_text('{"keys":[{"key_id":"new"}]}', encoding="utf-8")
     base.model_path.write_bytes(b"glTF-new")
     base.manifest_path.write_text('{"model_revision":"new"}', encoding="utf-8")
-    client = TestClient(app)
+    client = TestClient(app, base_url=BASE_URL)
 
     assert client.get("/api/layout").json()["keys"][0]["key_id"] == "old"
     assert client.get("/api/model/keyboard.glb").content == b"glTF-old"

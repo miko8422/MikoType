@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MikoType · Settings</title>
+    <link rel="stylesheet" href="/static/settings.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">MIKOTYPE · LOCAL CONTROL CONSOLE</p>
+        <h1>运行参数</h1>
+        <p class="subtitle">校验并保存 Windows 本机配置；正在运行的视频与感知管线不会被热替换。</p>
+      </div>
+      <div class="status-cluster">
+        <span id="service-status" class="badge waiting">正在读取服务</span>
+        <span id="restart-status" class="badge waiting">无待生效变更</span>
+      </div>
+    </header>
+
+    <nav class="site-nav" aria-label="MikoType 控制台">
+      <a href="/">运行状态</a>
+      <a href="/settings" class="active" aria-current="page">参数设置</a>
+      <a href="/setup">键盘定位与校准</a>
+    </nav>
+
+    <main>
+      <section class="card service-card" aria-labelledby="service-heading">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">ACTIVE PROCESS</p>
+            <h2 id="service-heading">当前服务</h2>
+          </div>
+          <button id="reload-settings" type="button" class="secondary">重新读取</button>
+        </div>
+        <dl class="service-grid">
+          <div>
+            <dt>实际地址</dt>
+            <dd><a id="service-url" href="/" class="mono">—</a></dd>
+          </div>
+          <div>
+            <dt>服务模式</dt>
+            <dd id="service-mode">—</dd>
+          </div>
+          <div>
+            <dt>端口</dt>
+            <dd id="service-port" class="mono">—</dd>
+          </div>
+          <div>
+            <dt>端口选择</dt>
+            <dd id="auto-port">—</dd>
+          </div>
+          <div class="wide">
+            <dt>当前配置</dt>
+            <dd id="config-path" class="mono">—</dd>
+          </div>
+          <div class="wide">
+            <dt>用户覆盖配置</dt>
+            <dd id="override-config-path" class="mono">—</dd>
+          </div>
+          <div class="wide">
+            <dt>键盘校准工作区</dt>
+            <dd id="setup-workspace-path" class="mono">—</dd>
+          </div>
+        </dl>
+        <p id="restart-notice" class="notice" hidden>
+          已保存的参数尚未用于当前进程。请在完成校准操作后重启 MikoType，再验证新参数。
+        </p>
+      </section>
+
+      <form id="settings-form" novalidate>
+        <div id="settings-groups" class="settings-groups" aria-live="polite">
+          <section class="card loading-card">正在读取可配置参数…</section>
+        </div>
+
+        <section class="card actions-card">
+          <div>
+            <h2>保存配置</h2>
+            <p>参数会先由后端校验，然后写入用户覆盖配置。标记为“需重启”的项目不会立即改变当前管线。</p>
+          </div>
+          <div class="button-row">
+            <button id="reset-settings" type="button" class="danger">恢复可调参数默认</button>
+            <button id="save-settings" type="submit" class="primary">校验并保存</button>
+          </div>
+        </section>
+        <p id="settings-message" class="message" role="status"></p>
+      </form>
+
+      <section class="protected-note">
+        <strong>安全边界</strong>
+        <span>部署拓扑、绑定地址、产物路径与远程推理不在普通调试表单中。</span>
+        <span id="protected-sections" class="mono"></span>
+      </section>
+    </main>
+
+    <footer>
+      <span>Windows-local</span>
+      <span>loopback only</span>
+      <span>保存与运行状态明确分离</span>
+    </footer>
+    <script src="/static/settings.js"></script>
+  </body>
+</html>

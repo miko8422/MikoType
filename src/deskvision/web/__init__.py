@@ -1,1 +1,1 @@
-"""Local debug web presenter boundary."""
+"""Unified loopback control console for status, settings, and calibration."""

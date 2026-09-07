@@ -124,7 +124,7 @@ class _NoMarkers:
 
 
 def test_runtime_composes_real_artifacts_and_latest_frame_workers(tmp_path: Path) -> None:
-    config = load_config(ROOT / "configs/windows.yaml")
+    config = load_config(ROOT / "configs/windows.yaml", include_local_override=False)
     artifacts = replace(
         config.artifacts,
         model_glb=tmp_path / "keyboard.glb",
@@ -168,7 +168,7 @@ def test_runtime_start_failure_closes_pipeline_and_source(tmp_path: Path) -> Non
         def open(self) -> None:
             raise RuntimeError("camera unavailable")
 
-    config = load_config(ROOT / "configs/windows.yaml")
+    config = load_config(ROOT / "configs/windows.yaml", include_local_override=False)
     config = replace(
         config,
         artifacts=replace(
@@ -197,7 +197,7 @@ def test_runtime_start_failure_closes_pipeline_and_source(tmp_path: Path) -> Non
 def test_runtime_stop_timeout_defers_pipeline_close_until_worker_exits(
     tmp_path: Path,
 ) -> None:
-    config = load_config(ROOT / "configs/windows.yaml")
+    config = load_config(ROOT / "configs/windows.yaml", include_local_override=False)
     config = replace(
         config,
         artifacts=replace(
@@ -245,7 +245,7 @@ def test_runtime_stop_timeout_defers_pipeline_close_until_worker_exits(
 def test_runtime_retries_failed_pipeline_close_without_allowing_restart(
     tmp_path: Path,
 ) -> None:
-    config = load_config(ROOT / "configs/windows.yaml")
+    config = load_config(ROOT / "configs/windows.yaml", include_local_override=False)
     config = replace(
         config,
         artifacts=replace(
@@ -279,7 +279,7 @@ def test_runtime_retries_failed_pipeline_close_without_allowing_restart(
 
 
 def test_v01_runtime_rejects_experimental_remote_inference() -> None:
-    config = load_config(ROOT / "configs/windows.yaml")
+    config = load_config(ROOT / "configs/windows.yaml", include_local_override=False)
     config = replace(
         config,
         remote_inference=replace(
@@ -299,7 +299,7 @@ def test_v01_runtime_rejects_experimental_remote_inference() -> None:
 
 
 def test_v01_runtime_rejects_non_loopback_fastapi_host() -> None:
-    config = load_config(ROOT / "configs/windows.yaml")
+    config = load_config(ROOT / "configs/windows.yaml", include_local_override=False)
     config = replace(config, app=replace(config.app, host="0.0.0.0"))
 
     with pytest.raises(RuntimeBuildError, match="loopback"):
@@ -327,7 +327,7 @@ def test_shared_runtime_config_validation_rejects_non_runnable_settings(
     value: object,
     message: str,
 ) -> None:
-    config = load_config(ROOT / "configs/windows.yaml")
+    config = load_config(ROOT / "configs/windows.yaml", include_local_override=False)
     config = replace(
         config,
         **{
@@ -342,7 +342,7 @@ def test_shared_runtime_config_validation_rejects_non_runnable_settings(
 def test_shared_runtime_config_validation_rejects_missing_hand_model(
     tmp_path: Path,
 ) -> None:
-    config = load_config(ROOT / "configs/windows.yaml")
+    config = load_config(ROOT / "configs/windows.yaml", include_local_override=False)
     config = replace(
         config,
         hand_tracking=replace(

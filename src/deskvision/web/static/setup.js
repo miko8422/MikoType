@@ -23,6 +23,8 @@ const actionButtonIds = [
 
 const svg = document.getElementById("keyboard-svg");
 const fields = Object.fromEntries(["x","y","w","h"].map(name => [name, document.getElementById(`${name}-input`)]));
+const markerRoot = document.getElementById("markers");
+const setupViewport = document.getElementById("setup-viewport");
 
 async function request(path, options = {}) {
   const response = await fetch(path, { cache:"no-store", headers:{"Content-Type":"application/json"}, ...options });
@@ -131,20 +133,53 @@ function renderSelected() {
   fields.w.value=Number(key.width_units).toFixed(3); fields.h.value=Number(key.height_units).toFixed(3);
 }
 
+function renderMarkers(anchors) {
+  markerRoot.replaceChildren();
+  const markerAnchors = Array.isArray(anchors)
+    ? [...anchors].sort((left, right) => Number(left.marker_id) - Number(right.marker_id))
+    : [];
+  if (markerAnchors.length === 0) {
+    const empty = document.createElement("p");
+    empty.className = "hint marker-empty";
+    empty.textContent = "当前键位图没有配置 Marker。";
+    markerRoot.append(empty);
+    return;
+  }
+  for (const anchor of markerAnchors) {
+    const markerId = Number(anchor.marker_id);
+    if (!Number.isInteger(markerId) || markerId < 0 || markerId > 49) continue;
+    const link = document.createElement("a");
+    link.href = `/api/setup/marker/${markerId}.png`;
+    link.download = `aruco_4x4_50_id_${markerId}.png`;
+    const image = document.createElement("img");
+    image.src = `/api/setup/marker/${markerId}.png?size=160`;
+    image.alt = `Marker ${markerId}`;
+    const label = document.createElement("span");
+    label.textContent = `ID ${markerId} · ${anchor.key_id || "未指定键位"}`;
+    link.append(image, label);
+    markerRoot.append(link);
+  }
+}
+
 svg.addEventListener("pointermove",event=>{ if(!drag||event.pointerId!==drag.pointer)return; const key=keys.find(item=>item.key_id===drag.id); const p=svgPoint(event); key.x_units=Math.max(0,Math.round((p.x-drag.dx)*100)/100); key.y_units=Math.max(0,Math.round((p.y-drag.dy)*100)/100); renderLayout(); renderSelected(); });
 svg.addEventListener("pointerup",()=>{drag=null;}); svg.addEventListener("pointercancel",()=>{drag=null;});
 
 for (const [name,input] of Object.entries(fields)) input.addEventListener("change",()=>{ const key=selected(); if(!key)return; const value=Number(input.value); if(!Number.isFinite(value))return; const field={x:"x_units",y:"y_units",w:"width_units",h:"height_units"}[name]; key[field]=name==="w"||name==="h"?Math.max(.1,value):Math.max(0,value); renderLayout(); renderSelected(); });
 
 async function loadLayout() {
-  const state=await request("/api/setup/layout"); profile=state.profile; keys=profile.keys.map(key=>({...key})); selectedId=keys[0]?.key_id; document.getElementById("layout-revision").textContent=`inventory ${state.inventory_revision.slice(0,10)}…`; renderLayout(); renderSelected();
+  const state=await request("/api/setup/layout"); profile=state.profile; keys=profile.keys.map(key=>({...key})); selectedId=keys[0]?.key_id; document.getElementById("layout-revision").textContent=`inventory ${state.inventory_revision.slice(0,10)}…`; renderLayout(); renderSelected(); renderMarkers(profile.anchors);
 }
 
-document.getElementById("save-layout").addEventListener("click",()=>{ stopAnchorPolling(); void runAction(async()=>{ try{ const saved=await request("/api/setup/layout",{method:"PUT",body:JSON.stringify({...profile,keys})}); profile=saved.profile; keys=profile.keys.map(key=>({...key})); message("layout-message","已保存。Anchor 和 Contact Map 必须重新验证。","success"); renderLayout(); }catch(error){message("layout-message",error.message,"error");} }); });
+async function loadPreviewConfig() {
+  const config = await request("/api/config");
+  setupViewport.classList.toggle("mirrored", Boolean(config.mirror_preview));
+}
+
+document.getElementById("save-layout").addEventListener("click",()=>{ stopAnchorPolling(); void runAction(async()=>{ try{ const saved=await request("/api/setup/layout",{method:"PUT",body:JSON.stringify({...profile,keys})}); profile=saved.profile; keys=profile.keys.map(key=>({...key})); message("layout-message","已保存。Anchor 和 Contact Map 必须重新验证。","success"); renderLayout(); renderMarkers(profile.anchors); }catch(error){message("layout-message",error.message,"error");} }); });
 
 function renderAnchor(state) {
   const root=document.getElementById("anchor-progress"); root.replaceChildren();
-  for(const marker of state.markers||[]){ const row=document.createElement("div"); row.className=`progress-item ${marker.ready?"ready":""}`; row.innerHTML=`<span>ID ${marker.marker_id} · ${marker.key_id}</span><strong>${marker.sample_count}/${marker.required_samples}</strong>`; root.append(row); }
+  for(const marker of state.markers||[]){ const row=document.createElement("div"); row.className=`progress-item ${marker.ready?"ready":""}`; const label=document.createElement("span"); label.textContent=`ID ${marker.marker_id} · ${marker.key_id}`; const progress=document.createElement("strong"); progress.textContent=`${marker.sample_count}/${marker.required_samples}`; row.append(label,progress); root.append(row); }
   document.getElementById("calibration-status").textContent=state.ready?"Anchor 可锁定":state.reason||"采集中";
 }
 
@@ -173,6 +208,6 @@ window.addEventListener("blur",cancelCaptureCountdown);
 document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelCaptureCountdown();});
 
 document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(node=>node.classList.toggle("active",node===tab));document.querySelectorAll(".panel").forEach(panel=>panel.classList.toggle("active",panel.id===tab.dataset.panel));}));
-const markerRoot=document.getElementById("markers"); for(let id=0;id<6;id++){const link=document.createElement("a");link.href=`/api/setup/marker/${id}.png`;link.download=`aruco_4x4_50_id_${id}.png`;link.innerHTML=`<img src="/api/setup/marker/${id}.png?size=160" alt="Marker ${id}" />ID ${id}`;markerRoot.append(link);}
 
 loadLayout().catch(error=>message("layout-message",error.message,"error")); request("/api/setup/contact").then(renderContact).catch(()=>{});
+loadPreviewConfig().catch(error=>message("setup-message",`无法读取预览镜像设置：${error.message}`,"error"));

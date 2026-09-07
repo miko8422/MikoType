@@ -9,9 +9,16 @@ import json
 from pathlib import Path
 import time
 from typing import Callable, Mapping
+from urllib.parse import urlsplit
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.staticfiles import StaticFiles
 
 from deskvision.observability.health import HealthSnapshot
@@ -35,6 +42,8 @@ class DebugWebContext:
     layout_path: Path
     model_path: Path
     manifest_path: Path
+    service_host: str = "127.0.0.1"
+    service_port: int = 8765
     mirror_preview: bool = True
     max_preview_fps: int = 30
     expose_model_download: bool = True
@@ -51,10 +60,78 @@ class DebugWebContext:
             raise ValueError("bundle_stale_after_ms must be positive")
         if self.health_interval_ms <= 0:
             raise ValueError("health_interval_ms must be positive")
+        if not 1 <= self.service_port <= 65535:
+            raise ValueError("service_port must be between 1 and 65535")
         if self.model_snapshot is not None and not isinstance(
             self.model_snapshot, bytes
         ):
             raise TypeError("model_snapshot must be bytes")
+
+
+def _authority_matches(
+    authority: str | None,
+    *,
+    expected_host: str,
+    expected_port: int,
+) -> bool:
+    if not authority:
+        return False
+    try:
+        parsed = urlsplit(f"//{authority}")
+        port = parsed.port or 80
+    except ValueError:
+        return False
+    return bool(
+        parsed.hostname
+        and parsed.hostname.casefold() == expected_host.casefold()
+        and port == expected_port
+        and parsed.username is None
+        and parsed.password is None
+        and not parsed.path
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
+def _origin_matches(
+    origin: str,
+    *,
+    expected_host: str,
+    expected_port: int,
+) -> bool:
+    try:
+        parsed = urlsplit(origin)
+    except ValueError:
+        return False
+    return bool(
+        parsed.scheme == "http"
+        and _authority_matches(
+            parsed.netloc,
+            expected_host=expected_host,
+            expected_port=expected_port,
+        )
+        and parsed.path in {"", "/"}
+        and not parsed.query
+        and not parsed.fragment
+    )
+
+
+def _browser_request_allowed(
+    host: str | None,
+    origin: str | None,
+    context: DebugWebContext,
+) -> bool:
+    if not _authority_matches(
+        host,
+        expected_host=context.service_host,
+        expected_port=context.service_port,
+    ):
+        return False
+    return origin is None or _origin_matches(
+        origin,
+        expected_host=context.service_host,
+        expected_port=context.service_port,
+    )
 
 
 def _read_json(path: Path, *, artifact: str) -> Mapping[str, object]:
@@ -77,6 +154,48 @@ def create_debug_app(context: DebugWebContext) -> FastAPI:
 
     app = FastAPI(title="MikoType Windows-Local Inspector", version="0.2")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+    @app.middleware("http")
+    async def protect_local_console(request: Request, call_next):
+        """Pin Host and reject untrusted browser access to the local console."""
+
+        if not _authority_matches(
+            request.headers.get("host"),
+            expected_host=context.service_host,
+            expected_port=context.service_port,
+        ):
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "unexpected local service host"},
+            )
+
+        fetch_site = request.headers.get("sec-fetch-site", "").casefold()
+        fetch_mode = request.headers.get("sec-fetch-mode", "").casefold()
+        fetch_dest = request.headers.get("sec-fetch-dest", "").casefold()
+        top_level_navigation = fetch_mode == "navigate" and fetch_dest == "document"
+        if fetch_site in {"cross-site", "same-site"} and not top_level_navigation:
+            return JSONResponse(
+                status_code=403,
+                content={"detail": "cross-site local resource request rejected"},
+            )
+
+        if request.method in {"POST", "PUT", "PATCH", "DELETE"}:
+            origin = request.headers.get("origin")
+            if origin and not _origin_matches(
+                origin,
+                expected_host=context.service_host,
+                expected_port=context.service_port,
+            ):
+                return JSONResponse(
+                    status_code=403,
+                    content={"detail": "cross-origin control request rejected"},
+                )
+        response = await call_next(request)
+        response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
+        response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "no-referrer"
+        return response
 
     @app.get("/", response_class=HTMLResponse)
     def index() -> HTMLResponse:
@@ -214,6 +333,13 @@ def create_debug_app(context: DebugWebContext) -> FastAPI:
 
     @app.websocket("/ws/state")
     async def websocket_state(websocket: WebSocket) -> None:
+        if not _browser_request_allowed(
+            websocket.headers.get("host"),
+            websocket.headers.get("origin"),
+            context,
+        ):
+            await websocket.close(code=1008, reason="untrusted local console origin")
+            return
         await websocket.accept()
         generation, latest = context.states.latest_with_generation()
         try:
@@ -260,6 +386,13 @@ def create_debug_app(context: DebugWebContext) -> FastAPI:
     async def websocket_bundle(websocket: WebSocket) -> None:
         """Send metadata/state followed by its exact JPEG as one logical unit."""
 
+        if not _browser_request_allowed(
+            websocket.headers.get("host"),
+            websocket.headers.get("origin"),
+            context,
+        ):
+            await websocket.close(code=1008, reason="untrusted local console origin")
+            return
         await websocket.accept()
         generation, latest = context.states.bundles.latest_with_generation()
         stale_notified = False

@@ -390,6 +390,8 @@ def build_runtime(
             layout_path=config.artifacts.layout_profile,
             model_path=config.artifacts.model_glb,
             manifest_path=config.artifacts.model_manifest,
+            service_host=config.app.host,
+            service_port=config.app.port,
             mirror_preview=config.debug_ui.mirror_preview,
             max_preview_fps=config.stream.max_preview_fps,
             expose_model_download=config.debug_ui.expose_model_download,

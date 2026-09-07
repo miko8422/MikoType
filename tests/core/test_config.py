@@ -8,6 +8,7 @@ from deskvision.core.config import (
     DeskVisionConfig,
     RemoteInferenceConfig,
     load_config,
+    local_override_path,
 )
 
 
@@ -31,7 +32,10 @@ def test_default_config_uses_latest_frame_pipeline() -> None:
 
 
 def test_windows_example_uses_windows_backend_and_valid_artifacts() -> None:
-    config = load_config(REPOSITORY / "configs" / "windows.yaml")
+    config = load_config(
+        REPOSITORY / "configs" / "windows.yaml",
+        include_local_override=False,
+    )
 
     assert config.camera.source_id == "windows_main"
     assert config.camera.backend == "msmf"
@@ -57,6 +61,35 @@ def test_yaml_loader_resolves_artifacts_relative_to_config(tmp_path: Path) -> No
 
     assert config.artifacts.contact_map == (tmp_path / "../profile/contact.json").resolve()
     assert config.hand_tracking.metrics_acknowledged is True
+
+
+def test_yaml_loader_applies_gitignored_local_override(tmp_path: Path) -> None:
+    path = tmp_path / "windows.yaml"
+    path.write_text(
+        "app:\n  port: 8765\n"
+        "camera:\n  backend: msmf\n  fps: 60\n",
+        encoding="utf-8",
+    )
+    override = local_override_path(path)
+    override.write_text(
+        "app:\n  port: 8877\n"
+        "camera:\n  backend: dshow\n",
+        encoding="utf-8",
+    )
+
+    config = load_config(path)
+
+    assert config.app.port == 8877
+    assert config.camera.backend == "dshow"
+    assert config.camera.fps == 60
+
+
+def test_yaml_loader_can_ignore_local_override(tmp_path: Path) -> None:
+    path = tmp_path / "windows.yaml"
+    path.write_text("app:\n  port: 8765\n", encoding="utf-8")
+    local_override_path(path).write_text("app:\n  port: 8877\n", encoding="utf-8")
+
+    assert load_config(path, include_local_override=False).app.port == 8765
 
 
 def test_config_rejects_non_latest_policy(tmp_path: Path) -> None:

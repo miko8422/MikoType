@@ -6,6 +6,8 @@ __pycache__/
 .venv/
 .testenv/
 .demoenvs/
+configs/*.local.yaml
+configs/*.local.yml
 demo/hand_tracking/models/rtmpose_hand/assets/
 demo/hand_tracking/models/mediapipe_hands/assets/*.task
 demo/keyboard_modeling/apple_sharp/frontend/node_modules/

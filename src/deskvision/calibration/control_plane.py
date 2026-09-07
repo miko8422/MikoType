@@ -78,18 +78,50 @@ class KeyboardSetupController:
         self.frames = frames
         self.states = states
         self.workspace = workspace
-        self.workspace.root.mkdir(parents=True, exist_ok=True)
+        self._validate_workspace_isolation()
         self._lock = Lock()
         self._detector = OpenCVArucoDetector()
         self._registration: AnchorRegistrationAccumulator | None = None
         self._contact_session: ContactCalibrationSession | None = None
         self._contact_locator: ArucoKeyboardLocator | None = None
+
+    def _validate_workspace_isolation(self) -> None:
+        staging = {
+            "layout": self.workspace.layout,
+            "anchor": self.workspace.anchor,
+            "contact draft": self.workspace.draft,
+            "contact map": self.workspace.contact_map,
+        }
+        active = {
+            name: getattr(self.active_artifacts, name)
+            for name in self.active_artifacts.__dataclass_fields__
+        }
+        active_paths = {
+            path.expanduser().resolve(strict=False): name
+            for name, path in active.items()
+        }
+        for staging_role, path in staging.items():
+            canonical = path.expanduser().resolve(strict=False)
+            active_role = active_paths.get(canonical)
+            if active_role is not None:
+                raise ValueError(
+                    "keyboard setup workspace must be separate from production "
+                    f"artifacts: staging {staging_role} overlaps {active_role} at "
+                    f"{canonical}"
+                )
+
+    def _ensure_staging_layout(self) -> None:
+        """Create setup state lazily so normal runtime does not depend on it."""
+
+        self.workspace.root.mkdir(parents=True, exist_ok=True)
         if not self.workspace.layout.exists():
             active = load_layout_profile(self.active_artifacts.layout_profile)
             save_layout_profile(self.workspace.layout, active)
 
     def layout_state(self) -> dict[str, object]:
-        profile = load_layout_profile(self.workspace.layout)
+        with self._lock:
+            self._ensure_staging_layout()
+            profile = load_layout_profile(self.workspace.layout)
         return {
             "schema_version": "keyboard-setup-layout-state-0.1",
             "profile": profile.to_dict(),
@@ -100,6 +132,7 @@ class KeyboardSetupController:
 
     def save_layout(self, payload: Mapping[str, object]) -> dict[str, object]:
         with self._lock:
+            self._ensure_staging_layout()
             persisted = save_layout_profile(self.workspace.layout, payload)
             self._registration = None
             self._contact_session = None
@@ -114,6 +147,7 @@ class KeyboardSetupController:
 
     def start_anchor_registration(self, *, reset: bool = False) -> dict[str, object]:
         with self._lock:
+            self._ensure_staging_layout()
             if self._registration is None or reset:
                 profile = load_layout_profile(self.workspace.layout)
                 assignments = marker_key_ids_from_profile(profile)
@@ -270,6 +304,7 @@ class KeyboardSetupController:
 
     def apply_bundle(self) -> dict[str, object]:
         with self._lock:
+            self._ensure_staging_layout()
             if not self.workspace.anchor.is_file() or not self.workspace.contact_map.is_file():
                 raise SetupUnavailableError(
                     "finalized anchor and Contact Map are required before apply"
@@ -309,6 +344,7 @@ class KeyboardSetupController:
     def _load_staging_contact_inputs(
         self,
     ) -> tuple[KeyboardLayoutProfile, LayoutInventory, AnchorReference]:
+        self._ensure_staging_layout()
         profile = load_layout_profile(self.workspace.layout)
         inventory = build_layout_inventory(profile)
         if not self.workspace.anchor.is_file():

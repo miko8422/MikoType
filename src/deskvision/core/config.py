@@ -328,6 +328,41 @@ class DeskVisionConfig:
 T = TypeVar("T")
 
 
+def local_override_path(path: str | Path) -> Path:
+    """Return the gitignored, user-owned override beside a base config."""
+
+    config_path = Path(path).expanduser().resolve()
+    return config_path.with_name(f"{config_path.stem}.local{config_path.suffix}")
+
+
+def _read_yaml_mapping(path: Path) -> dict[str, Any]:
+    try:
+        import yaml
+    except ImportError as exc:
+        raise RuntimeError("PyYAML is required to load DeskVision config") from exc
+
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if raw is None:
+        return {}
+    if not isinstance(raw, Mapping):
+        raise ValueError(f"DeskVision config root must be an object: {path}")
+    return dict(raw)
+
+
+def _deep_merge(
+    base: Mapping[str, Any],
+    override: Mapping[str, Any],
+) -> dict[str, Any]:
+    merged = dict(base)
+    for key, value in override.items():
+        previous = merged.get(key)
+        if isinstance(previous, Mapping) and isinstance(value, Mapping):
+            merged[key] = _deep_merge(previous, value)
+        else:
+            merged[key] = value
+    return merged
+
+
 def _section(payload: Mapping[str, Any], name: str) -> dict[str, Any]:
     value = payload.get(name, {})
     if not isinstance(value, Mapping):
@@ -342,20 +377,22 @@ def _construct(cls: type[T], payload: Mapping[str, Any], name: str) -> T:
         raise ValueError(f"invalid {name} config: {exc}") from exc
 
 
-def load_config(path: str | Path) -> DeskVisionConfig:
-    """Load one YAML config and resolve artifact paths relative to that file."""
+def load_config(
+    path: str | Path,
+    *,
+    include_local_override: bool = True,
+) -> DeskVisionConfig:
+    """Load YAML plus its optional ``*.local.yaml`` user override.
 
-    try:
-        import yaml
-    except ImportError as exc:
-        raise RuntimeError("PyYAML is required to load DeskVision config") from exc
+    Relative artifact and model paths always resolve from the base config so a
+    local settings file cannot accidentally change their reference directory.
+    """
 
     config_path = Path(path).expanduser().resolve()
-    raw = yaml.safe_load(config_path.read_text(encoding="utf-8"))
-    if raw is None:
-        raw = {}
-    if not isinstance(raw, Mapping):
-        raise ValueError("DeskVision config root must be an object")
+    raw = _read_yaml_mapping(config_path)
+    override_path = local_override_path(config_path)
+    if include_local_override and override_path != config_path and override_path.is_file():
+        raw = _deep_merge(raw, _read_yaml_mapping(override_path))
 
     artifacts_raw = _section(raw, "artifacts")
     resolved_artifacts: dict[str, Path] = {}
@@ -412,5 +449,6 @@ __all__ = [
     "PipelineConfig",
     "RemoteInferenceConfig",
     "StreamConfig",
+    "local_override_path",
     "load_config",
 ]

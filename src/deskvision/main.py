@@ -20,7 +20,16 @@ from deskvision.runtime import (
     ensure_keyboard_model,
     validate_runtime_config,
 )
+from deskvision.web.binding import (
+    ServicePortInUseError,
+    configuration_revision,
+    loopback_url,
+    probe_mikotype_service,
+    reserve_loopback_endpoint,
+    service_identity_mismatch,
+)
 from deskvision.web.setup import create_setup_router
+from deskvision.web.settings import RuntimeSettingsController, create_settings_router
 
 
 DEFAULT_CONFIG = Path("configs/windows.yaml")
@@ -39,11 +48,22 @@ def _parser() -> argparse.ArgumentParser:
     check.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
 
     run = subparsers.add_parser(
-        "run", help="start camera, mapping pipeline, and local inspector"
+        "run", help="start camera, mapping pipeline, and unified local console"
     )
     run.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     run.add_argument("--host")
     run.add_argument("--port", type=int)
+    run.add_argument(
+        "--auto-port",
+        action="store_true",
+        help="explicitly allow a bounded search when the requested port is occupied",
+    )
+    run.add_argument(
+        "--workspace",
+        type=Path,
+        default=Path("data/keyboards/.setup"),
+        help="staging directory used by the integrated keyboard setup page",
+    )
     run.add_argument(
         "--acknowledge-mediapipe-metrics",
         action="store_true",
@@ -54,11 +74,16 @@ def _parser() -> argparse.ArgumentParser:
     )
 
     setup = subparsers.add_parser(
-        "setup", help="start the isolated layout/anchor/contact calibration UI"
+        "setup", help="open or start the integrated keyboard calibration UI"
     )
     setup.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     setup.add_argument("--host")
     setup.add_argument("--port", type=int)
+    setup.add_argument(
+        "--auto-port",
+        action="store_true",
+        help="explicitly allow a bounded search when the requested port is occupied",
+    )
     setup.add_argument(
         "--workspace",
         type=Path,
@@ -130,9 +155,10 @@ def _check(config_path: Path) -> int:
     return 0
 
 
-def _run(args: argparse.Namespace) -> int:
+def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
     require_windows_runtime()
-    config = load_config(args.config)
+    configured_config = load_config(args.config)
+    config = configured_config
     if args.acknowledge_mediapipe_metrics:
         config = replace(
             config,
@@ -145,76 +171,122 @@ def _run(args: argparse.Namespace) -> int:
     if args.host is not None or args.port is not None:
         app_config = replace(
             app_config,
-            host=args.host or app_config.host,
-            port=args.port or app_config.port,
+            host=args.host if args.host is not None else app_config.host,
+            port=args.port if args.port is not None else app_config.port,
         )
-        config = replace(config, app=app_config)
     if not is_loopback_host(app_config.host):
         raise RuntimeError(
             "MikoType V0.1 is a same-host Windows service and may bind only "
             "to a loopback host"
         )
 
-    runtime = build_runtime(config)
-    runtime.start()
-    try:
+    requested_config = replace(config, app=app_config)
+    config_path = args.config.expanduser().resolve()
+    workspace_path = args.workspace.expanduser().resolve()
+    config_revision = configuration_revision(requested_config)
+
+    def mismatch(existing_service) -> str | None:
+        return service_identity_mismatch(
+            existing_service,
+            config_path=config_path,
+            workspace_path=workspace_path,
+            config_revision=config_revision,
+        )
+
+    existing = probe_mikotype_service(app_config.host, app_config.port)
+    if existing is not None and mismatch(existing) is None:
+        url = loopback_url(app_config.host, app_config.port)
+        target = f"{url}{landing_path}" if landing_path != "/" else f"{url}/"
         print(
-            f"MikoType running at http://{app_config.host}:{app_config.port} "
-            f"with {len(runtime.artifacts.layout.keys)} adaptive keys"
+            "MikoType is already running on the requested port; reuse the "
+            f"existing control plane at {target}"
         )
-        uvicorn.run(
-            runtime.web_app,
-            host=app_config.host,
-            port=app_config.port,
-            log_level=app_config.log_level.lower(),
+        return 0
+    if existing is not None and not args.auto_port:
+        raise ServicePortInUseError(
+            f"port {app_config.port} is occupied by an incompatible MikoType "
+            f"instance: {mismatch(existing)}; use its matching console, stop it, "
+            "choose --port <PORT>, or opt in to --auto-port"
         )
-    finally:
-        runtime.stop()
+
+    with reserve_loopback_endpoint(
+        app_config.host,
+        app_config.port,
+        allow_fallback=args.auto_port,
+    ) as endpoint:
+        if endpoint.auto_selected:
+            # If another MikoType instance occupies one of the skipped ports,
+            # reuse it instead of opening the camera a second time.
+            for occupied_port in range(endpoint.configured_port, endpoint.port):
+                existing = probe_mikotype_service(app_config.host, occupied_port)
+                if existing is None or mismatch(existing) is not None:
+                    continue
+                url = loopback_url(app_config.host, occupied_port)
+                target = (
+                    f"{url}{landing_path}" if landing_path != "/" else f"{url}/"
+                )
+                print(
+                    "MikoType is already running in the fallback range; reuse "
+                    f"the existing control plane at {target}"
+                )
+                return 0
+            print(
+                f"Configured port {endpoint.configured_port} is occupied; "
+                f"--auto-port selected {endpoint.port}."
+            )
+        runtime_config = replace(
+            requested_config,
+            app=replace(app_config, port=endpoint.port),
+        )
+        runtime = build_runtime(runtime_config)
+        try:
+            setup_controller = KeyboardSetupController(
+                active_artifacts=runtime_config.artifacts,
+                camera_config=runtime_config.camera,
+                frames=runtime.frames,
+                states=runtime.states,
+                workspace=SetupWorkspace(workspace_path),
+            )
+            settings_controller = RuntimeSettingsController(
+                base_config_path=config_path,
+                active_config=requested_config,
+                actual_host=endpoint.host,
+                actual_port=endpoint.port,
+                configured_port=endpoint.configured_port,
+                auto_selected=endpoint.auto_selected,
+                setup_workspace_path=workspace_path,
+                mode="setup" if landing_path == "/setup" else "run",
+                config_revision=config_revision,
+            )
+            runtime.web_app.include_router(
+                create_settings_router(settings_controller)
+            )
+            runtime.web_app.include_router(create_setup_router(setup_controller))
+            runtime.start()
+            url = endpoint.url
+            destination = f"{url}{landing_path}" if landing_path != "/" else f"{url}/"
+            print(
+                f"MikoType control plane running at {destination} with "
+                f"{len(runtime.artifacts.layout.keys)} adaptive keys"
+            )
+            server_config = uvicorn.Config(
+                runtime.web_app,
+                host=endpoint.host,
+                port=endpoint.port,
+                log_level=app_config.log_level.lower(),
+            )
+            uvicorn.Server(server_config).run(sockets=[endpoint.listener])
+        finally:
+            runtime.stop()
     return 0
+
+
+def _run(args: argparse.Namespace) -> int:
+    return _serve(args, landing_path="/")
 
 
 def _setup(args: argparse.Namespace) -> int:
-    require_windows_runtime()
-    config = load_config(args.config)
-    if args.acknowledge_mediapipe_metrics:
-        config = replace(
-            config,
-            hand_tracking=replace(config.hand_tracking, metrics_acknowledged=True),
-        )
-    app_config = replace(
-        config.app,
-        host=args.host or config.app.host,
-        port=args.port or config.app.port,
-    )
-    if not is_loopback_host(app_config.host):
-        raise RuntimeError(
-            "keyboard setup mutates local calibration and may bind only to a "
-            "loopback host"
-        )
-    config = replace(config, app=app_config)
-    runtime = build_runtime(config)
-    controller = KeyboardSetupController(
-        active_artifacts=config.artifacts,
-        camera_config=config.camera,
-        frames=runtime.frames,
-        states=runtime.states,
-        workspace=SetupWorkspace(args.workspace.expanduser().resolve()),
-    )
-    runtime.web_app.include_router(create_setup_router(controller))
-    runtime.start()
-    print(
-        f"Keyboard setup running at http://{app_config.host}:{app_config.port}/setup"
-    )
-    try:
-        uvicorn.run(
-            runtime.web_app,
-            host=app_config.host,
-            port=app_config.port,
-            log_level=app_config.log_level.lower(),
-        )
-    finally:
-        runtime.stop()
-    return 0
+    return _serve(args, landing_path="/setup")
 
 
 def _build_keyboard(args: argparse.Namespace) -> int:

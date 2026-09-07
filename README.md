@@ -107,6 +107,24 @@ mikotype run `
   --acknowledge-mediapipe-metrics
 ```
 
+If PowerShell still says that `mikotype` is not recognized, first verify the
+activated environment and editable install:
+
+```powershell
+conda activate mikotype
+python -m pip show vr-desk-vision
+Get-Command mikotype -ErrorAction SilentlyContinue
+```
+
+The module entry point is PATH-independent and can be used immediately:
+
+```powershell
+python -m deskvision.main check --config configs\windows.yaml
+python -m deskvision.main run `
+  --config configs\windows.yaml `
+  --acknowledge-mediapipe-metrics
+```
+
 Do not combine the uv and Conda environments. Commands below show the uv form.
 Inside the activated Conda environment, run application commands directly
 (omit `uv run --locked`) and replace test commands such as
@@ -114,17 +132,50 @@ Inside the activated Conda environment, run application commands directly
 same isolation, but only the recommended uv path consumes the exact
 cross-platform dependency lock.
 
-Open <http://127.0.0.1:8765/>. This starts the current camera, inference,
-mapping, model, and local state services. It does not yet start a live SteamVR
-consumer.
+Open <http://127.0.0.1:8765/>. One process and one camera now host the complete
+local control console:
 
-The default camera backend is `msmf`. If that camera cannot open reliably,
-change `camera.backend` in [`configs/windows.yaml`](configs/windows.yaml) to
-`dshow`, then `any`. Change `camera.device_index` if OpenCV selects the wrong
-camera. V0.1 requests resolution/FPS but does not yet verify that every camera
-driver accepted those values.
+- `/` shows the exact-frame video, hand/keyboard state, quality metrics, and
+  adaptive keyboard highlights.
+- `/settings` validates and saves allowlisted camera, preview, MediaPipe,
+  Marker, interaction, pipeline, and diagnostic parameters.
+- `/setup` adjusts the existing keys' positions and sizes, registers Marker
+  anchors, captures contacts in the layout's key order, and rebuilds the
+  adaptive 3D keyboard.
+
+WebUI settings are written atomically to the gitignored
+`configs/windows.local.yaml`. They are loaded automatically on the next start;
+the live camera and inference objects are never partially hot-swapped.
+
+The configured port is strict so a future SteamVR consumer does not silently
+connect to the wrong endpoint. If it is occupied, MikoType now fails before
+opening the camera and reports the conflict. For an interactive debug session,
+explicitly allow a bounded fallback and use the URL printed in the terminal:
+
+```powershell
+uv run --locked mikotype run `
+  --config configs\windows.yaml `
+  --auto-port `
+  --acknowledge-mediapipe-metrics
+```
+
+If the requested port already hosts the same MikoType configuration and Setup
+workspace, the CLI reuses that control plane instead of starting a second
+camera runtime. A mismatched instance is reported rather than silently using
+the wrong keyboard; `--auto-port` can start the requested workspace on a nearby
+free port. The service does not yet start a live SteamVR consumer.
+
+The default camera backend is `msmf`. If that camera cannot open reliably, use
+the Settings page to try `dshow`, then `any`. Change the device index if OpenCV
+selects the wrong camera. V0.1 requests resolution/FPS but does not yet verify
+that every camera driver accepted those values.
 
 ## Keyboard setup on Windows
+
+With `mikotype run` active, open <http://127.0.0.1:8765/setup>; do not start a
+second service. The compatibility command below starts the same integrated
+control plane when no MikoType instance is running, or points to the existing
+Setup page when one is already present:
 
 ```powershell
 uv run --locked mikotype setup `
@@ -132,10 +183,12 @@ uv run --locked mikotype setup `
   --acknowledge-mediapipe-metrics
 ```
 
-Open <http://127.0.0.1:8765/setup>. The setup flow defines the user's keys,
-registers marker anchors, captures five right-index contacts per key, validates
-all artifact revisions, and rebuilds the adaptive GLB. Restart the runtime
-after applying a completed bundle.
+The setup flow uses the existing layout's key inventory and calibration order,
+lets the user correct every key's position and size, registers marker anchors,
+captures five right-index contacts per key, validates all artifact revisions,
+and rebuilds the adaptive GLB. Restart the runtime after applying a completed
+bundle. Adding/removing key IDs or changing labels/anchor assignments remains a
+manual layout-file operation in V0.1.
 
 ## SteamVR source-only smoke on the same Windows PC
 

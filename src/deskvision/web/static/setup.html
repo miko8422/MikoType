@@ -13,10 +13,15 @@
         <h1>键盘布局与触点校准</h1>
         <p>设置过程写入 staging；点击“应用生产 Bundle”后才会替换运行产物，并要求重启实时服务。</p>
       </div>
-      <a href="/">返回运行检查器</a>
     </header>
 
-    <nav>
+    <nav class="site-nav" aria-label="MikoType 控制台">
+      <a href="/">运行状态</a>
+      <a href="/settings">参数设置</a>
+      <a href="/setup" class="active" aria-current="page">键盘定位与校准</a>
+    </nav>
+
+    <nav class="setup-tabs" aria-label="键盘校准步骤">
       <button class="tab active" data-panel="layout-panel">1 · 键位布局</button>
       <button class="tab" data-panel="calibration-panel">2 · Marker 与触点</button>
     </nav>
@@ -45,7 +50,7 @@
       <section id="calibration-panel" class="panel">
         <div class="card camera-card">
           <div class="card-title"><h2>同帧校准画面</h2><span id="calibration-status">等待开始</span></div>
-          <div class="viewport"><img src="/stream.mjpg" alt="Calibration camera" /></div>
+          <div id="setup-viewport" class="viewport"><img src="/stream.mjpg" alt="Calibration camera" /></div>
           <p class="hint">画面仅用于观察。触点保存使用严格同帧的原始帧、手部结果和 Marker pose。</p>
         </div>
         <div class="card actions-card">

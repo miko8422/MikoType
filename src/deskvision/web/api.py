@@ -11,7 +11,13 @@ class RouteContract:
 
 
 ROUTE_CONTRACTS = (
-    RouteContract("GET", "/", "browser debug page"),
+    RouteContract("GET", "/", "unified runtime inspector"),
+    RouteContract("GET", "/settings", "allowlisted restart-safe settings page"),
+    RouteContract("GET", "/setup", "keyboard layout and calibration page"),
+    RouteContract("GET", "/api/service", "active local service endpoint"),
+    RouteContract("GET", "/api/settings", "effective editable settings"),
+    RouteContract("PUT", "/api/settings", "persist local settings override"),
+    RouteContract("POST", "/api/settings/reset", "remove local settings override"),
     RouteContract("GET", "/stream.mjpg", "latest raw MJPEG setup preview"),
     RouteContract("GET", "/snapshot.jpg", "fresh processed-bundle JPEG snapshot"),
     RouteContract("GET", "/api/health", "capture health metrics"),
@@ -21,5 +27,17 @@ ROUTE_CONTRACTS = (
     RouteContract("GET", "/api/layout", "active user keyboard layout"),
     RouteContract("GET", "/api/model/manifest", "adaptive model manifest"),
     RouteContract("GET", "/api/model/keyboard.glb", "adaptive keyboard GLB"),
-    RouteContract("GET", "/setup", "explicit setup-mode control plane"),
+    RouteContract("GET", "/api/setup/layout", "read staged user keyboard layout"),
+    RouteContract("PUT", "/api/setup/layout", "stage user keyboard layout"),
+    RouteContract("POST", "/api/setup/anchor/start", "start marker registration"),
+    RouteContract("POST", "/api/setup/anchor/observe", "observe marker frame"),
+    RouteContract("POST", "/api/setup/anchor/finalize", "save anchor reference"),
+    RouteContract("GET", "/api/setup/marker/{marker_id}.png", "download marker"),
+    RouteContract("POST", "/api/setup/contact/start", "start contact calibration"),
+    RouteContract("GET", "/api/setup/contact", "read contact calibration state"),
+    RouteContract("POST", "/api/setup/contact/capture", "capture fingertip contact"),
+    RouteContract("POST", "/api/setup/contact/undo", "undo fingertip contact"),
+    RouteContract("POST", "/api/setup/contact/pause", "pause contact calibration"),
+    RouteContract("POST", "/api/setup/contact/reset", "reset contact calibration"),
+    RouteContract("POST", "/api/setup/apply", "atomically apply calibrated bundle"),
 )

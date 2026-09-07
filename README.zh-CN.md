@@ -100,20 +100,65 @@ mikotype run `
   --acknowledge-mediapipe-metrics
 ```
 
+如果 PowerShell 仍提示无法识别 `mikotype`，先确认当前 Conda 环境及可编辑安装：
+
+```powershell
+conda activate mikotype
+python -m pip show vr-desk-vision
+Get-Command mikotype -ErrorAction SilentlyContinue
+```
+
+也可以立即改用不依赖命令入口 PATH 的模块启动方式：
+
+```powershell
+python -m deskvision.main check --config configs\windows.yaml
+python -m deskvision.main run `
+  --config configs\windows.yaml `
+  --acknowledge-mediapipe-metrics
+```
+
 不要混用 uv 和 Conda 环境。后续命令以 uv 写法为准；如果已经激活 Conda
 环境，应用命令直接去掉开头的 `uv run --locked`，测试命令则把
 `uv run --locked --extra test pytest -q` 换成 `pytest -q`。Conda 同样提供环境
 隔离，但只有推荐的 uv 方案会使用仓库中精确的跨平台依赖锁。
 
-打开 <http://127.0.0.1:8765/>。这会启动现有的摄像头、推理、映射、模型和本机
-状态服务；目前还不会启动 SteamVR 实时消费端。
+打开 <http://127.0.0.1:8765/>。现在只启动一个进程和一路摄像头，并在同一个
+本地控制台提供：
 
-默认摄像头后端是 `msmf`。如果摄像头无法稳定打开，将
-[`configs/windows.yaml`](configs/windows.yaml) 中的 `camera.backend` 依次
-改为 `dshow`、`any`；OpenCV 选错摄像头时修改 `camera.device_index`。V0.1 会
-请求分辨率和 FPS，但暂不验证所有摄像头驱动是否真正接受了这些参数。
+- `/`：严格同帧的视频、手部/键盘状态、质量指标和自适应键盘高亮。
+- `/settings`：校验并保存白名单内的摄像头、预览、MediaPipe、Marker、交互、
+  流水线和诊断参数。
+- `/setup`：调整现有键位的位置与尺寸、注册 Marker Anchor、按键位图
+  顺序采集指尖触点，并重建自适应 3D 键盘。
+
+WebUI 参数会原子写入 Git 忽略的 `configs/windows.local.yaml`，下次启动时自动
+加载。运行中的摄像头和推理对象不会被局部热替换，界面会明确提示需要重启。
+
+端口默认严格固定，避免未来 SteamVR 消费端静默连接到错误地址。若端口被占用，
+MikoType 会在打开摄像头前停止并说明冲突。仅在交互调试时，可明确允许在有限范围
+内顺延端口，并使用终端输出的实际 URL：
+
+```powershell
+uv run --locked mikotype run `
+  --config configs\windows.yaml `
+  --auto-port `
+  --acknowledge-mediapipe-metrics
+```
+
+如果指定端口上已经是“同一份配置 + 同一个 Setup 工作区”的 MikoType，
+CLI 会复用现有控制台，不再启动第二套摄像头运行时。如果身份不匹配，
+系统会明确报错，不会静默使用错误键盘；使用 `--auto-port` 可在附近空闲端口
+启动当前工作区。目前仍不会启动 SteamVR 实时消费端。
+
+默认摄像头后端是 `msmf`。如果摄像头无法稳定打开，可在参数设置页依次尝试
+`dshow`、`any`；OpenCV 选错摄像头时修改设备编号。V0.1 会请求分辨率和 FPS，
+但暂不验证所有摄像头驱动是否真正接受了这些参数。
 
 ## Windows 键盘校准
+
+`mikotype run` 运行时直接打开 <http://127.0.0.1:8765/setup>，不要再启动第二个
+服务。下面的兼容命令只在 MikoType 尚未运行时启动同一个集成控制台；若已经运行，
+它会直接提示现有 Setup 地址：
 
 ```powershell
 uv run --locked mikotype setup `
@@ -121,9 +166,10 @@ uv run --locked mikotype setup `
   --acknowledge-mediapipe-metrics
 ```
 
-打开 <http://127.0.0.1:8765/setup>。Setup 会定义用户拥有的键位、注册 Marker
-Anchor、为每个键采集五次右手食指触点、校验全部产物版本并重建自适应 GLB。
-应用完整键盘包后需要重启运行时。
+Setup 会使用现有布局的键位清单和校准顺序，允许用户修正每个键的位置与尺寸、
+注册 Marker Anchor、为每个键采集五次右手食指触点、校验全部产物版本，并重建
+自适应 GLB。应用完整键盘包后需要重启运行时。V0.1 中新增/删除 key ID、
+修改标签或 Marker Anchor 分配仍需手动编辑 Layout 文件。
 
 ## 同一台 Windows 上的 SteamVR 源码烟测
 
