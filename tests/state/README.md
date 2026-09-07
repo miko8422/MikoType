@@ -5,5 +5,8 @@ processed `FramePacket + SceneState` bundle store. Identity mismatches fail and
 slow consumers receive only the newest generation.
 
 ```bash
-.testenv/bin/pytest -q tests/state
+uv run --locked --extra test pytest -q tests/state
 ```
+
+In an activated Conda environment installed with the root README's test extra,
+run `pytest -q tests/state` directly.

@@ -23,10 +23,13 @@ only after the user chooses Apply. The active process must then be restarted so
 one runtime never mixes old state with a new calibration.
 
 ```powershell
-.\.venv\Scripts\mikotype.exe setup `
+uv run --locked mikotype setup `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
+
+This follows the root README's recommended uv setup. In an activated Conda
+environment, omit `uv run --locked`.
 
 The setup page uses the camera directly; it has no image-upload control. The
 current V0.1 calibration contract describes likely fingertip contact, not proof

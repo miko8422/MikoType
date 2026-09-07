@@ -58,26 +58,61 @@ machine in V0.1.
 
 Requirements:
 
-- Windows 10/11 x64 and Python 3.12 x64.
+- Windows 10/11 x64 and Git.
+- Python 3.12 x64, managed with uv (recommended) or Conda.
 - A webcam visible to OpenCV.
 - Windows Camera privacy access for desktop applications.
 - The included keyboard bundle, or a bundle produced by the setup workflow.
 
-From PowerShell:
+### Option A: uv (recommended)
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) once with
+WinGet, then open a new PowerShell:
+
+```powershell
+winget install --id=astral-sh.uv -e
+
+git clone https://github.com/miko8422/MikoType.git
+cd MikoType
+
+uv sync --locked --python 3.12 --extra test
+
+uv run --locked mikotype check --config configs\windows.yaml
+uv run --locked mikotype run `
+  --config configs\windows.yaml `
+  --acknowledge-mediapipe-metrics
+```
+
+The committed [`uv.lock`](uv.lock) makes this the reproducible setup path and
+uv manages the project-local `.venv` automatically.
+
+### Option B: Conda
+
+After installing a Windows [Conda distribution](https://docs.conda.io/projects/conda/en/stable/user-guide/install/windows.html),
+open its PowerShell prompt. To use an ordinary PowerShell instead, run
+`conda init powershell` once from that prompt and then reopen PowerShell:
 
 ```powershell
 git clone https://github.com/miko8422/MikoType.git
 cd MikoType
 
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e ".[test]"
+conda create --name mikotype --override-channels --channel conda-forge `
+  python=3.12 pip --yes
+conda activate mikotype
+python -m pip install -e ".[test]"
 
-.\.venv\Scripts\mikotype.exe check --config configs\windows.yaml
-.\.venv\Scripts\mikotype.exe run `
+mikotype check --config configs\windows.yaml
+mikotype run `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
+
+Do not combine the uv and Conda environments. Commands below show the uv form.
+Inside the activated Conda environment, run application commands directly
+(omit `uv run --locked`) and replace test commands such as
+`uv run --locked --extra test pytest -q` with `pytest -q`. Conda provides the
+same isolation, but only the recommended uv path consumes the exact
+cross-platform dependency lock.
 
 Open <http://127.0.0.1:8765/>. This starts the current camera, inference,
 mapping, model, and local state services. It does not yet start a live SteamVR
@@ -92,7 +127,7 @@ driver accepted those values.
 ## Keyboard setup on Windows
 
 ```powershell
-.\.venv\Scripts\mikotype.exe setup `
+uv run --locked mikotype setup `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
@@ -109,7 +144,7 @@ asset lab on the same Windows PC:
 
 ```powershell
 $env:PYTHONPATH = "$PWD\src;$PWD"
-.\.venv\Scripts\python.exe -m demo.steamvr_home_hybrid.app `
+uv run --locked python -m demo.steamvr_home_hybrid.app `
   --host 127.0.0.1 --port 8776
 ```
 
@@ -210,14 +245,14 @@ windows_vr/         same-host Windows VR integration boundary
 The default suite does not open a camera or start SteamVR:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q
+uv run --locked --extra test pytest -q
 ```
 
 Explicit Windows camera checks:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q -m "hardware and not soak"
-.\.venv\Scripts\python.exe -m pytest -q -m soak
+uv run --locked --extra test pytest -q -m "hardware and not soak"
+uv run --locked --extra test pytest -q -m soak
 ```
 
 Non-Windows hosts may run offline checks and automated tests, but the

@@ -37,9 +37,12 @@ From the repository root in PowerShell:
 
 ```powershell
 $env:PYTHONPATH = "$PWD\src;$PWD"
-.\.venv\Scripts\python.exe -m demo.steamvr_home_hybrid.app `
+uv run --locked python -m demo.steamvr_home_hybrid.app `
   --host 127.0.0.1 --port 8776
 ```
+
+This uses the recommended uv environment from the root README. In an activated
+Conda environment, run the same command without `uv run --locked`.
 
 Open <http://127.0.0.1:8776/>. The page provides an offline 3D preview,
 direct/neighbor highlight playback, deterministic asset export, and a Windows

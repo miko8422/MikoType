@@ -7,16 +7,15 @@ synthetic source by default, and never changes the production entry point.
 
 From the project root:
 
-    python3 -m venv .testenv
-    .testenv/bin/python -m pip install -e '.[test]'
+    uv sync --locked --python 3.12 --extra test
 
 ## Run isolated tests
 
-    PYTHONPATH=src:. .testenv/bin/pytest -q tests/ui
+    uv run --locked --extra test pytest -q tests/ui
 
 ## Open the dashboard
 
-    PYTHONPATH=src:. .testenv/bin/python -m tests.ui.app --host 127.0.0.1 --port 8766
+    uv run --locked --extra test python -m tests.ui.app --host 127.0.0.1 --port 8766
 
 Then open http://127.0.0.1:8766. The dashboard shows a synthetic moving frame,
 the real CaptureThread/LatestFrameStore metrics, browser display FPS, and
@@ -30,9 +29,8 @@ encoding cost.
 To exercise a real Windows camera through the isolated process, run in
 PowerShell:
 
-    $env:PYTHONPATH = "$PWD\src;$PWD"
-    .\.venv\Scripts\python.exe -m tests.ui.app --source camera --host 127.0.0.1 --port 8766
+    uv run --locked --extra test python -m tests.ui.app --source camera --host 127.0.0.1 --port 8766
 
 Windows must allow desktop applications to access the camera.
 It is safe to run alongside the production package because it uses a separate
-process, port, configuration, source selection, and dependency environment.
+process, port, configuration, and source selection.

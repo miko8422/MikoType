@@ -6,5 +6,8 @@ processed frame paired with SceneState, stale data fails closed, and a running
 process keeps immutable Layout/GLB/Manifest snapshots across setup publication.
 
 ```bash
-.testenv/bin/pytest -q tests/web
+uv run --locked --extra test pytest -q tests/web
 ```
+
+In an activated Conda environment installed with the root README's test extra,
+run `pytest -q tests/web` directly.

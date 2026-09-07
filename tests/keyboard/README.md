@@ -6,5 +6,8 @@ revision checks, and cover direct/neighbor Bubble aggregation. They do not run
 a browser or GPU renderer.
 
 ```bash
-.testenv/bin/pytest -q tests/keyboard
+uv run --locked --extra test pytest -q tests/keyboard
 ```
+
+In an activated Conda environment installed with the root README's test extra,
+run `pytest -q tests/keyboard` directly.

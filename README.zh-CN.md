@@ -51,26 +51,59 @@ Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvisi
 
 环境要求：
 
-- Windows 10/11 x64 和 Python 3.12 x64。
+- Windows 10/11 x64 和 Git。
+- 使用 uv（推荐）或 Conda 管理 Python 3.12 x64。
 - OpenCV 可以访问的摄像头。
 - 在 Windows 隐私设置中允许桌面应用访问摄像头。
 - 使用仓库附带的键盘包，或通过 Setup 流程生成新键盘包。
 
-在 PowerShell 中执行：
+### 方案 A：uv（推荐）
+
+先通过 WinGet 安装一次 [uv](https://docs.astral.sh/uv/getting-started/installation/)，
+然后重新打开 PowerShell：
+
+```powershell
+winget install --id=astral-sh.uv -e
+
+git clone https://github.com/miko8422/MikoType.git
+cd MikoType
+
+uv sync --locked --python 3.12 --extra test
+
+uv run --locked mikotype check --config configs\windows.yaml
+uv run --locked mikotype run `
+  --config configs\windows.yaml `
+  --acknowledge-mediapipe-metrics
+```
+
+仓库提交的 [`uv.lock`](uv.lock) 用于复现相同依赖，uv 会自动管理项目内的
+`.venv`。
+
+### 方案 B：Conda
+
+安装 Windows [Conda 发行版](https://docs.conda.io/projects/conda/en/stable/user-guide/install/windows.html)
+后，打开该发行版自带的 PowerShell Prompt。若要使用普通 PowerShell，请先在前者中
+执行一次 `conda init powershell`，再重新打开 PowerShell：
 
 ```powershell
 git clone https://github.com/miko8422/MikoType.git
 cd MikoType
 
-py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install --upgrade pip
-.\.venv\Scripts\python.exe -m pip install -e ".[test]"
+conda create --name mikotype --override-channels --channel conda-forge `
+  python=3.12 pip --yes
+conda activate mikotype
+python -m pip install -e ".[test]"
 
-.\.venv\Scripts\mikotype.exe check --config configs\windows.yaml
-.\.venv\Scripts\mikotype.exe run `
+mikotype check --config configs\windows.yaml
+mikotype run `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
+
+不要混用 uv 和 Conda 环境。后续命令以 uv 写法为准；如果已经激活 Conda
+环境，应用命令直接去掉开头的 `uv run --locked`，测试命令则把
+`uv run --locked --extra test pytest -q` 换成 `pytest -q`。Conda 同样提供环境
+隔离，但只有推荐的 uv 方案会使用仓库中精确的跨平台依赖锁。
 
 打开 <http://127.0.0.1:8765/>。这会启动现有的摄像头、推理、映射、模型和本机
 状态服务；目前还不会启动 SteamVR 实时消费端。
@@ -83,7 +116,7 @@ py -3.12 -m venv .venv
 ## Windows 键盘校准
 
 ```powershell
-.\.venv\Scripts\mikotype.exe setup `
+uv run --locked mikotype setup `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
@@ -99,7 +132,7 @@ Anchor、为每个键采集五次右手食指触点、校验全部产物版本�
 
 ```powershell
 $env:PYTHONPATH = "$PWD\src;$PWD"
-.\.venv\Scripts\python.exe -m demo.steamvr_home_hybrid.app `
+uv run --locked python -m demo.steamvr_home_hybrid.app `
   --host 127.0.0.1 --port 8776
 ```
 
@@ -192,14 +225,14 @@ windows_vr/         同机 Windows VR 集成边界
 默认测试不会打开摄像头或启动 SteamVR：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q
+uv run --locked --extra test pytest -q
 ```
 
 显式 Windows 摄像头测试：
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q -m "hardware and not soak"
-.\.venv\Scripts\python.exe -m pytest -q -m soak
+uv run --locked --extra test pytest -q -m "hardware and not soak"
+uv run --locked --extra test pytest -q -m soak
 ```
 
 非 Windows 主机可以执行离线检查和自动化测试，但生产 `run` 与 `setup` 命令会

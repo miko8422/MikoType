@@ -5,8 +5,11 @@ without opening a camera, launching Steam/SteamVR, registering a
 Driver, contacting a network service, or writing production data.
 
 ```bash
-.testenv/bin/pytest -q tests/demo/steamvr_home_hybrid
+uv run --locked --extra test pytest -q tests/demo/steamvr_home_hybrid
 ```
+
+In an activated Conda environment installed with the root README's test extra,
+run `pytest -q tests/demo/steamvr_home_hybrid` directly.
 
 Coverage is split by boundary:
 

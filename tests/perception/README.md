@@ -7,7 +7,10 @@ the network, or initialize the real MediaPipe runtime by default.
 
 Run this module:
 
-    .testenv/bin/pytest -q tests/perception
+    uv run --locked --extra test pytest -q tests/perception
+
+In an activated Conda environment installed with the root README's test extra,
+run `pytest -q tests/perception` directly.
 
 The MediaPipe tests inject a local fake runtime to verify BGR-to-RGB conversion,
 monotonic VIDEO timestamps, 21-point conversion, frame identity, lifecycle, and

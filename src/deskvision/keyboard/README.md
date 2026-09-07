@@ -17,12 +17,15 @@ result is visual likelihood only; this module does not emit keyboard events.
 Build or validate a standalone deployable bundle with:
 
 ```bash
-.testenv/bin/python -m deskvision.main build-keyboard \
+uv run --locked python -m deskvision.main build-keyboard \
   --layout path/to/layout.json \
   --anchor path/to/anchor_reference.json \
   --contact-map path/to/contact_map.json \
   --output path/to/new_bundle
 ```
+
+This uses the root README's recommended uv environment. In an activated Conda
+environment, run the command without `uv run --locked`.
 
 Input and output paths must be distinct so a bad configuration cannot overwrite
 source calibration data.
