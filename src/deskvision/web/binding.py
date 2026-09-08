@@ -4,26 +4,33 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 import hashlib
+from http.client import HTTPConnection, HTTPException
 import json
 import os
 from pathlib import Path
 import socket
 from typing import Any, Mapping
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 from deskvision.core.config import DeskVisionConfig
 from deskvision.core.platform import is_loopback_host
 
 
 SERVICE_SCHEMA_VERSION = "mikotype-service-0.2"
+DEFAULT_PORT_SCAN_COUNT = 20
 REQUIRED_CONTROL_CAPABILITIES = frozenset(
     {"runtime_inspector", "runtime_settings", "keyboard_setup"}
 )
+_MAX_SERVICE_RESPONSE_BYTES = 64 * 1024
 
 
 class ServicePortInUseError(RuntimeError):
     """The requested bounded port range has no available listener."""
+
+
+def canonical_loopback_host(host: str) -> str:
+    """Return a deterministic socket host without leaving loopback."""
+
+    return "127.0.0.1" if host.casefold() == "localhost" else host
 
 
 def loopback_url(host: str, port: int) -> str:
@@ -124,7 +131,7 @@ class BoundEndpoint:
 
 
 def _listener(host: str, port: int) -> socket.socket:
-    bind_host = "127.0.0.1" if host.casefold() == "localhost" else host
+    bind_host = canonical_loopback_host(host)
     family = socket.AF_INET6 if ":" in bind_host else socket.AF_INET
     listener = socket.socket(family, socket.SOCK_STREAM)
     try:
@@ -144,7 +151,7 @@ def reserve_loopback_endpoint(
     preferred_port: int,
     *,
     allow_fallback: bool = False,
-    scan_count: int = 20,
+    scan_count: int = DEFAULT_PORT_SCAN_COUNT,
 ) -> BoundEndpoint:
     """Reserve a listener before camera startup and hand it to Uvicorn."""
 
@@ -164,7 +171,7 @@ def reserve_loopback_endpoint(
             last_error = exc
             continue
         return BoundEndpoint(
-            host=host,
+            host=canonical_loopback_host(host),
             port=port,
             configured_port=preferred_port,
             listener=listener,
@@ -176,8 +183,8 @@ def reserve_loopback_endpoint(
         detail = f"ports {preferred_port}-{attempted_end} are unavailable"
     else:
         detail = (
-            f"port {preferred_port} is already in use; close its process, choose "
-            "--port <PORT>, or opt in to --auto-port"
+            f"port {preferred_port} is unavailable and --strict-port disabled "
+            "fallback; leave automatic selection enabled or choose --port <PORT>"
         )
     if last_error is not None:
         detail += f" ({last_error})"
@@ -194,17 +201,35 @@ def probe_mikotype_service(
 
     if not is_loopback_host(host):
         return None
-    request = Request(
-        f"{loopback_url(host, port)}/api/service",
-        headers={"Accept": "application/json"},
+    connection = HTTPConnection(
+        canonical_loopback_host(host),
+        port,
+        timeout=timeout_s,
     )
     try:
-        with urlopen(request, timeout=timeout_s) as response:
-            if response.status != 200:
-                return None
-            payload = json.loads(response.read(64 * 1024).decode("utf-8"))
-    except (HTTPError, URLError, OSError, UnicodeError, json.JSONDecodeError):
+        # HTTPConnection talks directly to the exact loopback socket. It neither
+        # reads proxy environment variables nor follows redirects, so discovery
+        # cannot escape through a global VPN/proxy and changes no system setting.
+        connection.request(
+            "GET",
+            "/api/service",
+            headers={
+                "Accept": "application/json",
+                "Cache-Control": "no-store",
+                "Connection": "close",
+            },
+        )
+        response = connection.getresponse()
+        if response.status != 200:
+            return None
+        raw_payload = response.read(_MAX_SERVICE_RESPONSE_BYTES + 1)
+        if len(raw_payload) > _MAX_SERVICE_RESPONSE_BYTES:
+            return None
+        payload = json.loads(raw_payload.decode("utf-8"))
+    except (HTTPException, OSError, UnicodeError, json.JSONDecodeError):
         return None
+    finally:
+        connection.close()
     if not isinstance(payload, Mapping):
         return None
     if (
@@ -217,9 +242,11 @@ def probe_mikotype_service(
 
 __all__ = [
     "BoundEndpoint",
+    "DEFAULT_PORT_SCAN_COUNT",
     "REQUIRED_CONTROL_CAPABILITIES",
     "SERVICE_SCHEMA_VERSION",
     "ServicePortInUseError",
+    "canonical_loopback_host",
     "configuration_revision",
     "loopback_url",
     "probe_mikotype_service",

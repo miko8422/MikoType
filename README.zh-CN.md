@@ -11,8 +11,9 @@ MikoType 是一个面向 VR 的实体键盘视觉定位与交互管线。系统�
 > 这是 V0.1 唯一的生产拓扑。视觉与映射核心已经实现，但 Windows 实机验收和
 > SteamVR 实时消费端仍未完成。
 
-Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvision`；新的
-说明统一使用 `mikotype` 命令。
+Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvision`。uv
+说明使用 `mikotype` 命令；Conda 说明使用等价模块入口，从而不依赖在 `PATH`
+中找到 `mikotype` 命令脚本。
 
 ## 已实现功能
 
@@ -94,36 +95,48 @@ conda create --name mikotype --override-channels --channel conda-forge `
 conda activate mikotype
 python -m pip install -e ".[test]"
 
-mikotype check --config configs\windows.yaml
-mikotype run `
-  --config configs\windows.yaml `
-  --acknowledge-mediapipe-metrics
-```
-
-如果 PowerShell 仍提示无法识别 `mikotype`，先确认当前 Conda 环境及可编辑安装：
-
-```powershell
-conda activate mikotype
-python -m pip show vr-desk-vision
-Get-Command mikotype -ErrorAction SilentlyContinue
-```
-
-也可以立即改用不依赖命令入口 PATH 的模块启动方式：
-
-```powershell
 python -m deskvision.main check --config configs\windows.yaml
 python -m deskvision.main run `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
 
-不要混用 uv 和 Conda 环境。后续命令以 uv 写法为准；如果已经激活 Conda
-环境，应用命令直接去掉开头的 `uv run --locked`，测试命令则把
-`uv run --locked --extra test pytest -q` 换成 `pytest -q`。Conda 同样提供环境
-隔离，但只有推荐的 uv 方案会使用仓库中精确的跨平台依赖锁。
+Conda 方案使用模块入口，不依赖在 `PATH` 中找到生成的 `mikotype` 命令脚本。
+如果这个检出目录在加入该脚本前就做过 editable 安装，请先从仓库根目录诊断
+当前解释器、加载的版本和导入路径：
 
-打开 <http://127.0.0.1:8765/>。现在只启动一个进程和一路摄像头，并在同一个
-本地控制台提供：
+```powershell
+git pull --ff-only
+conda activate mikotype
+python -c "import sys; print(sys.executable)"
+python -c "import deskvision; print(deskvision.__file__)"
+python -m pip --version
+python -m pip show vr-desk-vision
+python -m deskvision.main --version
+python -m deskvision.main doctor --config configs\windows.yaml
+Get-Command mikotype -All -ErrorAction SilentlyContinue
+```
+
+本次版本中，`--version` 必须显示 `MikoType 0.1.0.dev1`，`doctor` 必须显示
+`"status": "ready"`。`sys.executable` 应指向 `mikotype` Conda 环境；如果不是，
+不要用这个 Python 重装软件包，而应重新打开 Conda PowerShell Prompt（或已由
+Conda 初始化的 PowerShell），执行 `conda activate mikotype` 后再诊断。只有解释器
+正确，但 `deskvision.__file__`、版本或 `doctor` 仍指向旧检出目录时，才修复项目的
+editable 链接并再次检查：
+
+```powershell
+python -m pip install --force-reinstall --no-deps -e .
+```
+
+不要混用 uv 和 Conda 环境。后续命令以 uv 写法为准；如果已经激活 Conda
+环境，不要再调用 uv：把 `uv run --locked mikotype <子命令>` 换成
+`python -m deskvision.main <子命令>`；对于 uv 前缀后本来就是 `python -m ...` 的
+命令，只保留 `python -m ...`；测试命令则把
+`uv run --locked --extra test pytest -q` 换成 `python -m pytest -q`。Conda 同样
+提供环境隔离，但只有推荐的 uv 方案会使用仓库中精确的跨平台依赖锁。
+
+运行时就绪后，终端会打印 `OPEN THIS EXACT URL: ...`。只打开该地址，不要假定
+最终使用的是 8765 端口。随后一个进程和一路摄像头会在同一本地控制台提供：
 
 - `/`：严格同帧的视频、手部/键盘状态、质量指标和自适应键盘高亮。
 - `/settings`：校验并保存白名单内的摄像头、预览、MediaPipe、Marker、交互、
@@ -134,21 +147,29 @@ python -m deskvision.main run `
 WebUI 参数会原子写入 Git 忽略的 `configs/windows.local.yaml`，下次启动时自动
 加载。运行中的摄像头和推理对象不会被局部热替换，界面会明确提示需要重启。
 
-端口默认严格固定，避免未来 SteamVR 消费端静默连接到错误地址。若端口被占用，
-MikoType 会在打开摄像头前停止并说明冲突。仅在交互调试时，可明确允许在有限范围
-内顺延端口，并使用终端输出的实际 URL：
+配置中的端口现在是首选端口，而不是必须占用的固定端口。`run` 和 `setup` 默认从
+首选端口起连续扫描最多 20 个回环端口；使用默认配置时范围为 8765 至 8784。如果
+其中已有“相同配置 + 同一 Setup 工作区”的 MikoType，CLI 会复用它；否则会在打开
+摄像头前预留第一个空闲端口。如果范围内既没有匹配实例也没有空闲端口，启动才会
+失败，且不会打开摄像头。
+
+MikoType 不会终止或重新配置占用端口的进程。Pimax 软件及其他任何本机服务都会
+保持运行，扫描只会继续尝试下一个端口。身份探测只直接访问回环地址，并仅对这些
+请求绕过继承的 HTTP(S) 代理；它不会修改 Windows 代理设置、VPN 状态、路由或
+其他应用的网络配置。
+
+始终只打开终端在 `OPEN THIS EXACT URL:` 后打印的地址。如果必须固定使用首选
+端口，可显式启用严格模式：
 
 ```powershell
 uv run --locked mikotype run `
   --config configs\windows.yaml `
-  --auto-port `
+  --strict-port `
   --acknowledge-mediapipe-metrics
 ```
 
-如果指定端口上已经是“同一份配置 + 同一个 Setup 工作区”的 MikoType，
-CLI 会复用现有控制台，不再启动第二套摄像头运行时。如果身份不匹配，
-系统会明确报错，不会静默使用错误键盘；使用 `--auto-port` 可在附近空闲端口
-启动当前工作区。目前仍不会启动 SteamVR 实时消费端。
+严格模式下，如果首选端口属于无关服务或身份不匹配的进程，MikoType 会在打开
+摄像头前失败。目前仍不会启动 SteamVR 实时消费端。
 
 默认摄像头后端是 `msmf`。如果摄像头无法稳定打开，可在参数设置页依次尝试
 `dshow`、`any`；OpenCV 选错摄像头时修改设备编号。V0.1 会请求分辨率和 FPS，
@@ -156,9 +177,10 @@ CLI 会复用现有控制台，不再启动第二套摄像头运行时。如果�
 
 ## Windows 键盘校准
 
-`mikotype run` 运行时直接打开 <http://127.0.0.1:8765/setup>，不要再启动第二个
-服务。下面的兼容命令只在 MikoType 尚未运行时启动同一个集成控制台；若已经运行，
-它会直接提示现有 Setup 地址：
+主 `run` 命令运行时，从终端打印的准确地址进入控制台并打开其中的 Setup 页面；
+不要假定端口为 8765，也不要再启动第二个服务。下面的兼容命令只在没有匹配的
+MikoType 实例时启动同一个集成控制台；若已经运行，它会打印现有 Setup 的准确
+地址：
 
 ```powershell
 uv run --locked mikotype setup `

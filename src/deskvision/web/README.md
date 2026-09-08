@@ -42,10 +42,25 @@ The reserved experimental remote-inference contract is intentionally not
 mounted here. This inspector has no network authentication and must never be
 exposed as a cross-device camera service.
 
-The preferred port is reserved before camera startup. A fixed-port conflict
-fails with an actionable error; `--auto-port` explicitly opts into a bounded
-search and the actual endpoint is available from `/api/service`. If the fixed
-endpoint identifies itself as the same MikoType config revision and Setup
-workspace, `run`/`setup` reuse it instead of opening a second camera runtime.
-An incompatible instance is never silently reused. SteamVR production
-integration should keep a fixed port unless it implements endpoint discovery.
+The configured port is preferred rather than forcibly claimed. By default,
+`run` and `setup` probe and reserve up to 20 consecutive loopback ports starting
+there (8765 through 8784 with the default configuration). A matching MikoType
+config revision and Setup workspace anywhere in that range is reused instead
+of opening a second camera runtime; otherwise the first free candidate is
+reserved before camera startup. If the whole range is unavailable, startup
+fails without opening the camera. `--strict-port` disables fallback when an
+integration genuinely requires the preferred port.
+
+No occupied-port owner is terminated or reconfigured. Pimax software and all
+other local services remain running while MikoType continues the scan. Service
+identity probes connect directly to loopback and bypass inherited HTTP(S) proxy
+settings only for those requests; they do not change the system proxy, VPN,
+routes, or another application's networking.
+
+Startup and reuse both print `OPEN THIS EXACT URL: ...`; operators should open
+only that address instead of assuming the preferred port was selected. The
+actual endpoint is also reported by `/api/service`. SteamVR production
+integration must either perform the same bounded loopback discovery and verify
+each candidate's identity through `/api/service`, or opt into `--strict-port`
+and fail closed. `/api/service` verifies a known candidate; it does not reveal
+an otherwise unknown port by itself.

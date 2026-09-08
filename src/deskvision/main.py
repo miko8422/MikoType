@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
+from importlib.metadata import PackageNotFoundError, distribution
 import json
 from pathlib import Path
 import sys
 
 import uvicorn
 
+from deskvision import __version__
 from deskvision.calibration.artifacts import load_keyboard_calibration_artifacts
 from deskvision.calibration.control_plane import KeyboardSetupController, SetupWorkspace
 from deskvision.core.config import load_config
@@ -21,7 +23,10 @@ from deskvision.runtime import (
     validate_runtime_config,
 )
 from deskvision.web.binding import (
+    DEFAULT_PORT_SCAN_COUNT,
+    SERVICE_SCHEMA_VERSION,
     ServicePortInUseError,
+    canonical_loopback_host,
     configuration_revision,
     loopback_url,
     probe_mikotype_service,
@@ -35,12 +40,147 @@ from deskvision.web.settings import RuntimeSettingsController, create_settings_r
 DEFAULT_CONFIG = Path("configs/windows.yaml")
 
 
+def _runtime_identity() -> dict[str, object]:
+    source_path = Path(__file__).resolve()
+    checkout_source = (Path.cwd() / "src" / "deskvision" / "main.py").resolve()
+    checkout_has_source = checkout_source.is_file()
+    installed_version: str | None = None
+    install_origin: object = None
+    try:
+        package = distribution("vr-desk-vision")
+        installed_version = package.version
+        raw_origin = package.read_text("direct_url.json")
+        if raw_origin:
+            install_origin = json.loads(raw_origin)
+    except (PackageNotFoundError, json.JSONDecodeError):
+        pass
+    return {
+        "package_version": __version__,
+        "distribution_version": installed_version,
+        "service_schema": SERVICE_SCHEMA_VERSION,
+        "python_executable": sys.executable,
+        "runtime_source": str(source_path),
+        "working_directory": str(Path.cwd().resolve()),
+        "expected_checkout_source": (
+            str(checkout_source) if checkout_has_source else None
+        ),
+        "source_matches_current_checkout": (
+            source_path == checkout_source if checkout_has_source else None
+        ),
+        "install_origin": install_origin,
+    }
+
+
+def _print_version() -> int:
+    identity = _runtime_identity()
+    print(
+        f"MikoType {identity['package_version']} "
+        f"({identity['service_schema']})\n"
+        f"Python: {identity['python_executable']}\n"
+        f"Source: {identity['runtime_source']}"
+    )
+    return 0
+
+
+def _doctor(config_path: Path) -> int:
+    identity = _runtime_identity()
+    resolved_config = config_path.expanduser().resolve()
+    source_matches = identity["source_matches_current_checkout"]
+    distribution_matches = identity["distribution_version"] in (
+        None,
+        identity["package_version"],
+    )
+    checks = {
+        "config_exists": resolved_config.is_file(),
+        "source_matches_current_checkout": source_matches,
+        "distribution_matches_source": distribution_matches,
+    }
+    healthy = (
+        checks["config_exists"]
+        and source_matches is not False
+        and distribution_matches
+    )
+    print(
+        json.dumps(
+            {
+                "status": "ready" if healthy else "attention_required",
+                **identity,
+                "config_path": str(resolved_config),
+                "checks": checks,
+                "repair": (
+                    None
+                    if healthy and distribution_matches
+                    else "python -m pip install --force-reinstall --no-deps -e ."
+                ),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0 if healthy else 2
+
+
+def _print_startup_identity(
+    *, config_path: Path, host: str, port: int, auto_port: bool
+) -> None:
+    identity = _runtime_identity()
+    print("\n=== MIKOTYPE STARTUP ===", flush=True)
+    print(
+        f"Version: {identity['package_version']} "
+        f"({identity['service_schema']})",
+        flush=True,
+    )
+    print(f"Python: {identity['python_executable']}", flush=True)
+    print(f"Source: {identity['runtime_source']}", flush=True)
+    print(f"Config: {config_path}", flush=True)
+    if auto_port:
+        scan_end = min(65535, port + DEFAULT_PORT_SCAN_COUNT - 1)
+        policy = f"automatic ({port}-{scan_end})"
+    else:
+        policy = f"strict ({port})"
+    print(f"Port policy: {policy} on {host}", flush=True)
+    if identity["source_matches_current_checkout"] is False:
+        print(
+            "WARNING: this command is loading MikoType from a different "
+            "checkout. Repair this environment with:\n"
+            "  python -m pip install --force-reinstall --no-deps -e .",
+            flush=True,
+        )
+
+
+def _add_port_selection(parser: argparse.ArgumentParser) -> None:
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument(
+        "--auto-port",
+        dest="auto_port",
+        action="store_true",
+        help="search a bounded local range when the preferred port is occupied (default)",
+    )
+    selection.add_argument(
+        "--strict-port",
+        dest="auto_port",
+        action="store_false",
+        help="fail instead of moving when the preferred port is occupied",
+    )
+    parser.set_defaults(auto_port=True)
+
+
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mikotype",
         description="Windows-local vision runtime for adaptive keyboard mapping",
     )
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    parser.add_argument(
+        "--version",
+        action="store_true",
+        help="show the loaded MikoType version, Python, and source path",
+    )
+    subparsers = parser.add_subparsers(dest="command")
+
+    doctor = subparsers.add_parser(
+        "doctor", help="diagnose the active Python/install/config without hardware"
+    )
+    doctor.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
 
     check = subparsers.add_parser(
         "check", help="validate production config, calibration, and adaptive model"
@@ -53,11 +193,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     run.add_argument("--host")
     run.add_argument("--port", type=int)
-    run.add_argument(
-        "--auto-port",
-        action="store_true",
-        help="explicitly allow a bounded search when the requested port is occupied",
-    )
+    _add_port_selection(run)
     run.add_argument(
         "--workspace",
         type=Path,
@@ -79,11 +215,7 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument("--config", type=Path, default=DEFAULT_CONFIG)
     setup.add_argument("--host")
     setup.add_argument("--port", type=int)
-    setup.add_argument(
-        "--auto-port",
-        action="store_true",
-        help="explicitly allow a bounded search when the requested port is occupied",
-    )
+    _add_port_selection(setup)
     setup.add_argument(
         "--workspace",
         type=Path,
@@ -179,11 +311,21 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
             "MikoType V0.1 is a same-host Windows service and may bind only "
             "to a loopback host"
         )
+    app_config = replace(
+        app_config,
+        host=canonical_loopback_host(app_config.host),
+    )
 
     requested_config = replace(config, app=app_config)
     config_path = args.config.expanduser().resolve()
     workspace_path = args.workspace.expanduser().resolve()
     config_revision = configuration_revision(requested_config)
+    _print_startup_identity(
+        config_path=config_path,
+        host=app_config.host,
+        port=app_config.port,
+        auto_port=args.auto_port,
+    )
 
     def mismatch(existing_service) -> str | None:
         return service_identity_mismatch(
@@ -193,21 +335,34 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
             config_revision=config_revision,
         )
 
-    existing = probe_mikotype_service(app_config.host, app_config.port)
-    if existing is not None and mismatch(existing) is None:
-        url = loopback_url(app_config.host, app_config.port)
+    def reuse_existing(port: int, *, discovered: bool = False) -> int:
+        url = loopback_url(app_config.host, port)
         target = f"{url}{landing_path}" if landing_path != "/" else f"{url}/"
+        location = "discovered fallback port" if discovered else "preferred port"
         print(
-            "MikoType is already running on the requested port; reuse the "
-            f"existing control plane at {target}"
+            f"MikoType is already running on the {location}.\n"
+            f"OPEN THIS EXACT URL: {target}",
+            flush=True,
         )
         return 0
+
+    existing = probe_mikotype_service(app_config.host, app_config.port)
+    if existing is not None and mismatch(existing) is None:
+        return reuse_existing(app_config.port)
     if existing is not None and not args.auto_port:
         raise ServicePortInUseError(
             f"port {app_config.port} is occupied by an incompatible MikoType "
             f"instance: {mismatch(existing)}; use its matching console, stop it, "
-            "choose --port <PORT>, or opt in to --auto-port"
+            "choose --port <PORT>, or remove --strict-port"
         )
+    if args.auto_port:
+        # A previous automatic run may still live above a now-free preferred
+        # port. Discover it before reserving anything to avoid a second camera.
+        scan_end = min(65535, app_config.port + DEFAULT_PORT_SCAN_COUNT - 1)
+        for candidate_port in range(app_config.port + 1, scan_end + 1):
+            candidate = probe_mikotype_service(app_config.host, candidate_port)
+            if candidate is not None and mismatch(candidate) is None:
+                return reuse_existing(candidate_port, discovered=True)
 
     with reserve_loopback_endpoint(
         app_config.host,
@@ -221,18 +376,10 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
                 existing = probe_mikotype_service(app_config.host, occupied_port)
                 if existing is None or mismatch(existing) is not None:
                     continue
-                url = loopback_url(app_config.host, occupied_port)
-                target = (
-                    f"{url}{landing_path}" if landing_path != "/" else f"{url}/"
-                )
-                print(
-                    "MikoType is already running in the fallback range; reuse "
-                    f"the existing control plane at {target}"
-                )
-                return 0
+                return reuse_existing(occupied_port, discovered=True)
             print(
                 f"Configured port {endpoint.configured_port} is occupied; "
-                f"--auto-port selected {endpoint.port}."
+                f"automatic selection chose {endpoint.port}."
             )
         runtime_config = replace(
             requested_config,
@@ -257,6 +404,9 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
                 setup_workspace_path=workspace_path,
                 mode="setup" if landing_path == "/setup" else "run",
                 config_revision=config_revision,
+                package_version=__version__,
+                runtime_source=str(Path(__file__).resolve()),
+                python_executable=sys.executable,
             )
             runtime.web_app.include_router(
                 create_settings_router(settings_controller)
@@ -265,15 +415,24 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
             runtime.start()
             url = endpoint.url
             destination = f"{url}{landing_path}" if landing_path != "/" else f"{url}/"
+            print("\n=== MIKOTYPE READY ===", flush=True)
+            if endpoint.auto_selected:
+                print(
+                    f"Preferred port {endpoint.configured_port} belongs to another "
+                    "local process and was left untouched.",
+                    flush=True,
+                )
+            print(f"OPEN THIS EXACT URL: {destination}", flush=True)
             print(
-                f"MikoType control plane running at {destination} with "
-                f"{len(runtime.artifacts.layout.keys)} adaptive keys"
+                f"Adaptive keyboard: {len(runtime.artifacts.layout.keys)} keys\n",
+                flush=True,
             )
             server_config = uvicorn.Config(
                 runtime.web_app,
                 host=endpoint.host,
                 port=endpoint.port,
                 log_level=app_config.log_level.lower(),
+                workers=1,
             )
             uvicorn.Server(server_config).run(sockets=[endpoint.listener])
         finally:
@@ -323,6 +482,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = _parser()
     args = parser.parse_args(argv)
     try:
+        if args.version:
+            return _print_version()
+        if args.command is None:
+            parser.error("a command is required")
+        if args.command == "doctor":
+            return _doctor(args.config)
         if args.command == "check":
             return _check(args.config)
         if args.command == "run":

@@ -70,6 +70,9 @@ function renderService(payload) {
       : actualPort,
   );
   setText("auto-port", payload.auto_selected ? "端口占用，已自动选择" : "使用配置端口");
+  setText("package-version", payload.package_version);
+  setText("python-executable", payload.python_executable);
+  setText("runtime-source", payload.runtime_source);
   setText("config-path", payload.config_path || settings?.base_config_path);
   setText("override-config-path", payload.override_config_path || settings?.override_config_path, "尚未生成");
   setText("setup-workspace-path", payload.setup_workspace_path);

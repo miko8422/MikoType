@@ -30,6 +30,9 @@ def _client(tmp_path: Path) -> tuple[TestClient, RuntimeSettingsController, Path
         actual_port=8766,
         configured_port=8765,
         auto_selected=True,
+        package_version="0.1.test",
+        runtime_source=r"M:\\Work\\Project\\VR\\MikoType\\src\\deskvision\\main.py",
+        python_executable=r"M:\\Miniconda3\\envs\\mikotype\\python.exe",
     )
     app = FastAPI()
     app.include_router(create_settings_router(controller))
@@ -49,12 +52,18 @@ def test_settings_page_and_service_describe_one_control_plane(tmp_path: Path) ->
     page = client.get("/settings")
     assert page.status_code == 200
     assert 'id="setup-workspace-path"' in page.text
+    assert 'id="package-version"' in page.text
+    assert 'id="python-executable"' in page.text
+    assert 'id="runtime-source"' in page.text
     settings = client.get("/api/settings").json()
     service = client.get("/api/service").json()
 
     assert _field(settings, "camera", "fps")["value"] == 60
     assert "remote_inference" in settings["protected_sections"]
     assert service["service"] == "MikoType"
+    assert service["package_version"] == "0.1.test"
+    assert service["runtime_source"].endswith(r"deskvision\\main.py")
+    assert service["python_executable"].endswith("python.exe")
     assert service["url"] == "http://127.0.0.1:8766"
     assert service["configured_port"] == 8765
     assert service["auto_selected"] is True

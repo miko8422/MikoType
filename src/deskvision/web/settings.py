@@ -7,6 +7,7 @@ from dataclasses import dataclass, field, replace
 import math
 import os
 from pathlib import Path
+import sys
 import tempfile
 from threading import RLock
 from typing import Any
@@ -14,6 +15,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse
 
+from deskvision import __version__
 from deskvision.core.config import (
     DeskVisionConfig,
     load_config,
@@ -137,7 +139,17 @@ SETTING_GROUPS = (
         "本地服务",
         "端口和日志级别在下次启动时生效；服务始终限制在本机回环地址。",
         (
-            _field("app", "port", "首选端口", "默认 8765。冲突时可用 --auto-port 启动。", "integer", minimum=1, maximum=65535, step=1),
+            _field(
+                "app",
+                "port",
+                "首选端口",
+                "默认 8765；被 Pimax 等本地服务占用时会自动顺延。"
+                "仅需固定端口时使用 --strict-port。",
+                "integer",
+                minimum=1,
+                maximum=65535,
+                step=1,
+            ),
             _field("app", "log_level", "日志级别", "控制终端日志详细程度。", "select", options=("DEBUG", "INFO", "WARNING", "ERROR")),
         ),
     ),
@@ -294,6 +306,11 @@ class RuntimeSettingsController:
     setup_workspace_path: Path = Path("data/keyboards/.setup")
     mode: str = "run"
     config_revision: str | None = None
+    package_version: str = __version__
+    runtime_source: str = field(
+        default_factory=lambda: str(Path(__file__).resolve())
+    )
+    python_executable: str = field(default_factory=lambda: sys.executable)
     _configured_config: DeskVisionConfig | None = None
     _restart_required: bool = False
     _lock: RLock = field(default_factory=RLock, init=False, repr=False)
@@ -347,6 +364,9 @@ class RuntimeSettingsController:
             return {
                 "schema_version": SERVICE_SCHEMA_VERSION,
                 "service": "MikoType",
+                "package_version": self.package_version,
+                "runtime_source": self.runtime_source,
+                "python_executable": self.python_executable,
                 "mode": self.mode,
                 "host": self.actual_host,
                 "port": self.actual_port,
