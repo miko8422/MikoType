@@ -3,13 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MikoType · Windows-Local Inspector</title>
-    <link rel="stylesheet" href="/static/style.css" />
+    <title>MikoType · Local Tracking Inspector</title>
+    <link rel="stylesheet" href="/static/style.css?v=0.1.0.dev3" />
   </head>
   <body>
     <header>
       <div>
-        <p class="eyebrow">MIKOTYPE · WINDOWS-LOCAL INSPECTOR</p>
+        <p class="eyebrow">MIKOTYPE · LOCAL TRACKING INSPECTOR</p>
         <h1>实体键盘映射</h1>
         <p class="subtitle">同帧手部追踪、ArUco 参考坐标、Contact Map 与自适应 3D 键盘</p>
       </div>
@@ -35,11 +35,11 @@
           <span id="pose-status" class="badge waiting">键盘未定位</span>
         </div>
         <div id="viewport" class="viewport">
-          <img id="camera" alt="Windows camera preview" />
+          <img id="camera" alt="Local camera preview" />
           <canvas id="overlay"></canvas>
           <div id="empty-message" class="empty-message">正在等待生产视频流…</div>
         </div>
-        <p class="notice">绿色为最可能接触的键位，较暗颜色为邻近候选；它们不是机械按键事件。</p>
+        <p class="notice">青色骨架与指尖为 MediaPipe 原始追踪，无需先定位键盘。绿色 Bubble 为已映射指尖，绿色键帽为接触候选；它们不是机械按键事件。</p>
       </section>
 
       <section class="panel metrics-panel">
@@ -59,7 +59,8 @@
         </div>
         <dl class="details">
           <div><dt>手</dt><dd id="hand-count">0</dd></div>
-          <div><dt>指尖 Bubble</dt><dd id="fingertip-count">0</dd></div>
+          <div><dt>原始追踪指尖（青色）</dt><dd id="raw-fingertip-count">0</dd></div>
+          <div><dt>已映射指尖（绿色）</dt><dd id="fingertip-count">0</dd></div>
           <div><dt>高亮键</dt><dd id="highlight-count">0</dd></div>
           <div><dt>状态</dt><dd id="diagnostic-status">—</dd></div>
           <div><dt>模型 revision</dt><dd id="model-revision" class="mono">—</dd></div>
@@ -92,6 +93,6 @@
       <span>latest-frame-only</span>
       <span>调试界面不参与 SteamVR 运行时</span>
     </footer>
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=0.1.0.dev3"></script>
   </body>
 </html>

@@ -25,6 +25,7 @@ from deskvision.observability.health import HealthSnapshot
 from deskvision.perception.worker import PerceptionWorkerStats
 from deskvision.state.bundle import FrameStateBundle
 from deskvision.state.store import LatestSceneStateStore
+from deskvision.state.scene_state import Diagnostics, SceneState
 from deskvision.video.jpeg_encoder import LatestJpegEncoder
 from deskvision.video.latest_frame import LatestFrameStore
 
@@ -152,7 +153,7 @@ def _read_json(path: Path, *, artifact: str) -> Mapping[str, object]:
 def create_debug_app(context: DebugWebContext) -> FastAPI:
     """Build an inspector app without starting or owning the runtime."""
 
-    app = FastAPI(title="MikoType Windows-Local Inspector", version="0.2")
+    app = FastAPI(title="MikoType Local Inspector", version="0.2")
     app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
     @app.middleware("http")
@@ -195,6 +196,8 @@ def create_debug_app(context: DebugWebContext) -> FastAPI:
         response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["Referrer-Policy"] = "no-referrer"
+        # Local iteration must not silently combine an old UI with a new API.
+        response.headers["Cache-Control"] = "no-store"
         return response
 
     @app.get("/", response_class=HTMLResponse)
@@ -351,8 +354,14 @@ def create_debug_app(context: DebugWebContext) -> FastAPI:
                     generation,
                     timeout_s=5.0,
                 )
-                if next_generation > generation and latest is not None:
+                if next_generation > generation:
                     generation = next_generation
+                    if latest is None:
+                        latest = SceneState.empty(
+                            source_id="camera-transition", source_frame_id=0,
+                            captured_at_ns=time.time_ns(),
+                            diagnostics=Diagnostics(status="stale", error="camera state cleared"),
+                        )
                     await websocket.send_json(latest.to_dict())
         except WebSocketDisconnect:
             return

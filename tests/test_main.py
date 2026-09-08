@@ -266,7 +266,8 @@ def test_default_auto_port_reports_ready_only_after_successful_server_startup(
             def index():
                 return {"ready": True}
 
-        def start(self) -> None:
+        def start(self, *, allow_camera_failure=False) -> None:
+            assert allow_camera_failure
             events.append("runtime_started")
 
         def stop(self) -> None:

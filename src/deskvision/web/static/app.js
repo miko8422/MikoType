@@ -21,6 +21,56 @@ let decodeSequence = 0;
 let staleTimer = null;
 let reconnectTimer = null;
 let shuttingDown = false;
+const RAW_TIP_INDICES = [4, 8, 12, 16, 20];
+const HAND_CONNECTIONS = [
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  [5, 9], [9, 10], [10, 11], [11, 12],
+  [9, 13], [13, 14], [14, 15], [15, 16],
+  [13, 17], [0, 17], [17, 18], [18, 19], [19, 20],
+];
+
+function validLandmark(point) {
+  return point && Number.isFinite(point.x) && Number.isFinite(point.y);
+}
+
+function rawFingertips(state) {
+  return (state.hands || []).flatMap(hand =>
+    RAW_TIP_INDICES.map(index => hand.landmarks?.[index]).filter(validLandmark),
+  );
+}
+
+function imagePoint(point, bounds) {
+  return {
+    x: (config.mirror_preview ? 1 - point.x : point.x) * bounds.width,
+    y: point.y * bounds.height,
+  };
+}
+
+function drawRawHands(context, state, bounds) {
+  // Raw camera-space tracking remains visible before marker/contact calibration.
+  context.strokeStyle = "rgba(86,213,238,.7)";
+  context.lineWidth = 1.5;
+  for (const hand of state.hands || []) {
+    const landmarks = hand.landmarks || [];
+    context.beginPath();
+    for (const [from, to] of HAND_CONNECTIONS) {
+      if (!validLandmark(landmarks[from]) || !validLandmark(landmarks[to])) continue;
+      const a = imagePoint(landmarks[from], bounds);
+      const b = imagePoint(landmarks[to], bounds);
+      context.moveTo(a.x, a.y);
+      context.lineTo(b.x, b.y);
+    }
+    context.stroke();
+  }
+  context.fillStyle = "rgba(86,213,238,.95)";
+  for (const tip of rawFingertips(state)) {
+    const point = imagePoint(tip, bounds);
+    context.beginPath();
+    context.arc(point.x, point.y, 4.5, 0, Math.PI * 2);
+    context.fill();
+  }
+}
 
 function shortRevision(value) {
   return value ? `${String(value).slice(0, 9)}…` : "—";
@@ -66,6 +116,7 @@ function drawFingertips(state) {
   const context = canvas.getContext("2d");
   context.scale(scale, scale);
   context.clearRect(0, 0, bounds.width, bounds.height);
+  drawRawHands(context, state, bounds);
   for (const tip of state.fingertips || []) {
     const x = (config.mirror_preview ? 1 - Number(tip.image_x) : Number(tip.image_x)) * bounds.width;
     const y = Number(tip.image_y) * bounds.height;
@@ -123,6 +174,7 @@ function clearLiveDisplay(reason) {
   ui.pose.textContent = "键盘未定位";
   ui.pose.className = "badge waiting";
   setText("hand-count", "0");
+  setText("raw-fingertip-count", "0");
   setText("fingertip-count", "0");
   setText("highlight-count", "0");
   setText("diagnostic-status", "stale");
@@ -193,6 +245,7 @@ function renderState(state) {
   setText("marker-count", String(pose.anchor_count ?? 0));
   setText("pose-confidence", number(pose.confidence, 2));
   setText("hand-count", String((state.hands || []).length));
+  setText("raw-fingertip-count", String(rawFingertips(state).length));
   setText("fingertip-count", String((state.fingertips || []).length));
   setText("highlight-count", String((state.key_highlights || []).length));
   setText("diagnostic-status", diagnostics.status || "—");

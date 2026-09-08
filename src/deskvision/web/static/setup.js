@@ -25,6 +25,16 @@ const svg = document.getElementById("keyboard-svg");
 const fields = Object.fromEntries(["x","y","w","h"].map(name => [name, document.getElementById(`${name}-input`)]));
 const markerRoot = document.getElementById("markers");
 const setupViewport = document.getElementById("setup-viewport");
+const setupPreview = setupViewport.querySelector("img");
+const setupPreviewUrl = setupPreview.getAttribute("src") || "/stream.mjpg";
+const keyFieldNames = {x:"x_units", y:"y_units", w:"width_units", h:"height_units"};
+
+function updatePreviewVisibility() {
+  const visible = !document.hidden && document.getElementById("calibration-panel").classList.contains("active");
+  if (visible && !setupPreview.hasAttribute("src")) setupPreview.src = setupPreviewUrl;
+  else if (!visible) setupPreview.removeAttribute("src");
+}
+updatePreviewVisibility();
 
 async function request(path, options = {}) {
   const response = await fetch(path, { cache:"no-store", headers:{"Content-Type":"application/json"}, ...options });
@@ -125,12 +135,39 @@ function renderLayout() {
 }
 
 function selected() { return keys.find(key=>key.key_id===selectedId); }
-function renderSelected() {
+function renderSelected(force = false) {
   const key=selected(); if(!key) return;
   document.getElementById("selected-title").textContent=key.label;
   document.getElementById("selected-id").textContent=key.key_id;
-  fields.x.value=Number(key.x_units).toFixed(3); fields.y.value=Number(key.y_units).toFixed(3);
-  fields.w.value=Number(key.width_units).toFixed(3); fields.h.value=Number(key.height_units).toFixed(3);
+  for (const [name, input] of Object.entries(fields)) {
+    // Do not reformat active edits, including spinner changes or incomplete decimals.
+    if (!force && document.activeElement === input && input.dataset.keyId === key.key_id) continue;
+    input.value = Number(key[keyFieldNames[name]]).toFixed(3);
+    input.dataset.keyId = key.key_id;
+    input.setCustomValidity("");
+  }
+}
+
+function commitKeyField(name, input, normalize = false) {
+  const key = selected();
+  if (!key || input.dataset.keyId !== key.key_id) return;
+  // Merely focusing/blurring a rounded display must not round stored precision.
+  if (normalize && input.value === Number(key[keyFieldNames[name]]).toFixed(3)) return;
+  const value = input.value.trim() === "" ? NaN : Number(input.value);
+  if (!Number.isFinite(value)) {
+    input.setCustomValidity("请输入有效数字；空白不会修改键位。");
+    if (normalize) {
+      input.value = Number(key[keyFieldNames[name]]).toFixed(3);
+      input.setCustomValidity("");
+      message("layout-message", "无效数字已恢复；键位没有被修改。", "error");
+    }
+    return;
+  }
+  key[keyFieldNames[name]] = name === "w" || name === "h" ? Math.max(.1, value) : Math.max(0, value);
+  input.setCustomValidity("");
+  renderLayout();
+  if (normalize) input.value = Number(key[keyFieldNames[name]]).toFixed(3);
+  renderSelected();
 }
 
 function renderMarkers(anchors) {
@@ -164,7 +201,11 @@ function renderMarkers(anchors) {
 svg.addEventListener("pointermove",event=>{ if(!drag||event.pointerId!==drag.pointer)return; const key=keys.find(item=>item.key_id===drag.id); const p=svgPoint(event); key.x_units=Math.max(0,Math.round((p.x-drag.dx)*100)/100); key.y_units=Math.max(0,Math.round((p.y-drag.dy)*100)/100); renderLayout(); renderSelected(); });
 svg.addEventListener("pointerup",()=>{drag=null;}); svg.addEventListener("pointercancel",()=>{drag=null;});
 
-for (const [name,input] of Object.entries(fields)) input.addEventListener("change",()=>{ const key=selected(); if(!key)return; const value=Number(input.value); if(!Number.isFinite(value))return; const field={x:"x_units",y:"y_units",w:"width_units",h:"height_units"}[name]; key[field]=name==="w"||name==="h"?Math.max(.1,value):Math.max(0,value); renderLayout(); renderSelected(); });
+for (const [name,input] of Object.entries(fields)) {
+  input.addEventListener("input", () => input.setCustomValidity(""));
+  input.addEventListener("change", () => commitKeyField(name, input));
+  input.addEventListener("blur", () => commitKeyField(name, input, true));
+}
 
 async function loadLayout() {
   const state=await request("/api/setup/layout"); profile=state.profile; keys=profile.keys.map(key=>({...key})); selectedId=keys[0]?.key_id; document.getElementById("layout-revision").textContent=`inventory ${state.inventory_revision.slice(0,10)}…`; renderLayout(); renderSelected(); renderMarkers(profile.anchors);
@@ -205,9 +246,9 @@ document.getElementById("apply-bundle").addEventListener("click",()=>{if(!confir
 
 window.addEventListener("keydown",event=>{if(event.key==="Escape")cancelCaptureCountdown();});
 window.addEventListener("blur",cancelCaptureCountdown);
-document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelCaptureCountdown();});
+document.addEventListener("visibilitychange",()=>{if(document.hidden)cancelCaptureCountdown();updatePreviewVisibility();});
 
-document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(node=>node.classList.toggle("active",node===tab));document.querySelectorAll(".panel").forEach(panel=>panel.classList.toggle("active",panel.id===tab.dataset.panel));}));
+document.querySelectorAll(".tab").forEach(tab=>tab.addEventListener("click",()=>{document.querySelectorAll(".tab").forEach(node=>node.classList.toggle("active",node===tab));document.querySelectorAll(".panel").forEach(panel=>panel.classList.toggle("active",panel.id===tab.dataset.panel));updatePreviewVisibility();}));
 
 loadLayout().catch(error=>message("layout-message",error.message,"error")); request("/api/setup/contact").then(renderContact).catch(()=>{});
 loadPreviewConfig().catch(error=>message("setup-message",`无法读取预览镜像设置：${error.message}`,"error"));

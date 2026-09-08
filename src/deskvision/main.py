@@ -19,7 +19,8 @@ from deskvision.cli_diagnostics import (
 from deskvision.calibration.artifacts import load_keyboard_calibration_artifacts
 from deskvision.calibration.control_plane import KeyboardSetupController, SetupWorkspace
 from deskvision.core.config import load_config
-from deskvision.core.platform import is_loopback_host, require_windows_runtime
+from deskvision.core.platform import is_loopback_host, require_windows_runtime, require_core_runtime
+from deskvision.core.local_workspace import initialize_mac_workspace
 from deskvision.keyboard.bundle import KeyboardBundlePaths, build_keyboard_bundle
 from deskvision.runtime import (
     build_runtime,
@@ -41,6 +42,8 @@ from deskvision.web.binding import (
 )
 from deskvision.web.setup import create_setup_router
 from deskvision.web.settings import RuntimeSettingsController, create_settings_router
+from deskvision.web.camera import CameraController, create_camera_router
+from deskvision.runtime_camera import RuntimeCameraSession
 
 
 DEFAULT_CONFIG = Path("configs/windows.yaml")
@@ -93,7 +96,7 @@ def _add_port_selection(parser: argparse.ArgumentParser) -> None:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="mikotype",
-        description="Windows-local vision runtime for adaptive keyboard mapping",
+        description="Local camera and adaptive keyboard mapping; SteamVR is tested separately on Windows",
     )
     parser.add_argument(
         "--version",
@@ -122,7 +125,7 @@ def _parser() -> argparse.ArgumentParser:
     run.add_argument(
         "--workspace",
         type=Path,
-        default=Path("data/keyboards/.setup"),
+        default=None,
         help="staging directory used by the integrated keyboard setup page",
     )
     run.add_argument(
@@ -144,7 +147,7 @@ def _parser() -> argparse.ArgumentParser:
     setup.add_argument(
         "--workspace",
         type=Path,
-        default=Path("data/keyboards/.setup"),
+        default=None,
     )
     setup.add_argument(
         "--acknowledge-mediapipe-metrics",
@@ -213,8 +216,11 @@ def _check(config_path: Path) -> int:
 
 
 def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
-    require_windows_runtime()
     config = load_config(args.config)
+    if config.deployment.target_os == "windows":
+        require_windows_runtime()
+    else:
+        require_core_runtime(config.deployment.target_os)
     if args.acknowledge_mediapipe_metrics:
         config = replace(
             config,
@@ -232,7 +238,7 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
         )
     if not is_loopback_host(app_config.host):
         raise RuntimeError(
-            "MikoType V0.1 is a same-host Windows service and may bind only "
+            "MikoType V0.1 is a same-host service and may bind only "
             "to a loopback host"
         )
     app_config = replace(
@@ -242,7 +248,11 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
 
     requested_config = replace(config, app=app_config)
     config_path = args.config.expanduser().resolve()
-    workspace_path = args.workspace.expanduser().resolve()
+    default_workspace = (
+        Path(__file__).resolve().parents[2] / "data/local/macos/.setup"
+        if config.deployment.target_os == "macos" else Path("data/keyboards/.setup")
+    )
+    workspace_path = (args.workspace or default_workspace).expanduser().resolve()
     config_revision = configuration_revision(requested_config)
     _print_startup_identity(
         config_path=config_path,
@@ -306,6 +316,7 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
             requested_config,
             app=replace(app_config, port=endpoint.port),
         )
+        initialize_mac_workspace(runtime_config, repository=Path(__file__).resolve().parents[2])
         runtime = build_runtime(runtime_config)
         try:
             setup_controller = KeyboardSetupController(
@@ -333,7 +344,13 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
                 create_settings_router(settings_controller)
             )
             runtime.web_app.include_router(create_setup_router(setup_controller))
-            runtime.start()
+            camera_session = RuntimeCameraSession(runtime, settings_controller, setup_controller)
+            runtime.web_app.include_router(create_camera_router(CameraController(
+                status=camera_session.status,
+                scan=camera_session.scan,
+                apply=camera_session.apply,
+            )))
+            runtime.start(allow_camera_failure=True)
             url = endpoint.url
             destination = f"{url}{landing_path}" if landing_path != "/" else f"{url}/"
 
@@ -357,6 +374,7 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
                 port=endpoint.port,
                 log_level=app_config.log_level.lower(),
                 workers=1,
+                timeout_graceful_shutdown=runtime_config.pipeline.stop_timeout_s,
             )
             server = ReadyServer(server_config)
             try:

@@ -1,4 +1,5 @@
 from pathlib import Path
+from dataclasses import replace
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -74,6 +75,41 @@ def _seed_stale_staging_lineage(controller: KeyboardSetupController) -> None:
         load_contact_map(controller.active_artifacts.contact_map),
     )
     controller.workspace.draft.write_text("stale draft", encoding="utf-8")
+
+
+def test_camera_change_preserves_but_blocks_old_staging_until_revalidated(tmp_path):
+    controller = _controller(tmp_path)
+    controller.layout_state()
+    _seed_stale_staging_lineage(controller)
+    before = controller.workspace.contact_map.read_bytes()
+    with controller.camera_change(replace(controller.camera_config, device_index=1)):
+        assert controller.camera_revalidation_path.exists()
+    assert controller.workspace.contact_map.read_bytes() == before
+    with pytest.raises(SetupUnavailableError, match="camera changed"):
+        controller.start_contact_calibration()
+    with pytest.raises(SetupUnavailableError, match="camera changed"):
+        controller.apply_bundle()
+    # The block survives a process restart; users must explicitly register again.
+    restarted = KeyboardSetupController(
+        active_artifacts=controller.active_artifacts, camera_config=controller.camera_config,
+        frames=controller.frames, states=controller.states, workspace=controller.workspace,
+    )
+    with pytest.raises(SetupUnavailableError, match="camera changed"):
+        restarted.apply_bundle()
+
+
+def test_camera_config_change_across_restart_blocks_old_staging(tmp_path):
+    controller = _controller(tmp_path)
+    controller.layout_state()
+    _seed_stale_staging_lineage(controller)
+    restarted = KeyboardSetupController(
+        active_artifacts=controller.active_artifacts,
+        camera_config=replace(controller.camera_config, device_index=2, width=640),
+        frames=controller.frames, states=controller.states, workspace=controller.workspace,
+    )
+    with pytest.raises(SetupUnavailableError, match="camera changed"):
+        restarted.start_contact_calibration()
+    assert restarted.workspace.contact_map.is_file()
 
 
 def test_setup_router_exposes_layout_and_marker_without_upload(tmp_path: Path) -> None:

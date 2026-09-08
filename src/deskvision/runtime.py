@@ -1,8 +1,8 @@
-"""Composition root for the single-host Windows V0.1 runtime."""
+"""Composition root for the single-host Windows/macOS core runtime."""
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import hashlib
 import json
 from pathlib import Path
@@ -13,8 +13,12 @@ from deskvision.calibration.artifacts import (
     KeyboardCalibrationArtifacts,
     load_keyboard_calibration_artifacts,
 )
-from deskvision.core.config import DeskVisionConfig
-from deskvision.core.platform import is_loopback_host, require_windows_runtime
+from deskvision.core.config import CameraConfig, DeskVisionConfig
+from deskvision.core.platform import (
+    is_loopback_host,
+    require_core_runtime,
+    validate_camera_backend,
+)
 from deskvision.keyboard.adaptive_model import (
     GeneratedKeyboardModel,
     generate_adaptive_keyboard_model,
@@ -42,10 +46,10 @@ from deskvision.perception.worker import LatestFramePerceptionWorker
 from deskvision.state.scene_state import ArtifactRevisions, KeyboardModelState
 from deskvision.state.store import LatestSceneStateStore
 from deskvision.transport.local_websocket import LocalWebSocketPublisher
-from deskvision.video.capture import CaptureThread
+from deskvision.video.capture import CaptureStartError, CaptureThread
 from deskvision.video.jpeg_encoder import LatestJpegEncoder
 from deskvision.video.latest_frame import LatestFrameStore
-from deskvision.video.windows_camera import WindowsCameraSource
+from deskvision.video.opencv_camera import OpenCVCameraSource
 from deskvision.video.source import FrameSource
 from deskvision.web.app import DebugWebContext, create_debug_app
 
@@ -62,6 +66,10 @@ def validate_runtime_config(config: DeskVisionConfig) -> None:
     every invariant below is an unconditional V0.1 runtime requirement.
     """
 
+    try:
+        validate_camera_backend(config.deployment.target_os, config.camera.backend)
+    except ValueError as exc:
+        raise RuntimeBuildError(str(exc)) from exc
     if not is_loopback_host(config.app.host):
         raise RuntimeBuildError(
             "the V0.1 FastAPI service must stay on a loopback host"
@@ -71,7 +79,7 @@ def validate_runtime_config(config: DeskVisionConfig) -> None:
     if config.remote_inference.enabled:
         raise RuntimeBuildError(
             "remote inference is an experimental contract and is not active in "
-            "V0.1; use the single-host Windows topology"
+            "V0.1; use the single-host topology"
         )
     if not config.hand_tracking.enabled or not config.keyboard_tracking.enabled:
         raise RuntimeBuildError("hand and keyboard tracking must both be enabled")
@@ -176,7 +184,7 @@ class DeskVisionRuntime:
     _closed: bool = False
     _status: str = "created"
 
-    def start(self) -> None:
+    def start(self, *, allow_camera_failure: bool = False) -> None:
         if self._started:
             if self._status == "running":
                 return
@@ -185,7 +193,7 @@ class DeskVisionRuntime:
             )
         if self._closed:
             raise RuntimeError("a stopped DeskVisionRuntime cannot be restarted")
-        if self._status != "created":
+        if self._status not in {"created", "waiting_for_camera"}:
             raise RuntimeError(
                 f"runtime is {self._status}; complete shutdown and rebuild it"
             )
@@ -194,6 +202,12 @@ class DeskVisionRuntime:
             self.capture.start()
             self.perception.start()
         except Exception as start_error:
+            if allow_camera_failure and isinstance(start_error, CaptureStartError):
+                # Keep the console/model available so the user can select or
+                # retry another camera. Do not claim the pipeline is running.
+                self.capture.stop(timeout_s=self.config.pipeline.stop_timeout_s)
+                self._status = "waiting_for_camera"
+                return
             cleanup_errors: list[Exception] = []
             for close in (
                 lambda: self.perception.stop(timeout_s=self.config.pipeline.stop_timeout_s),
@@ -221,6 +235,41 @@ class DeskVisionRuntime:
             raise
         self._started = True
         self._status = "running"
+
+    def reconfigure_camera(self, camera: CameraConfig) -> None:
+        """Swap a stopped camera in place; keep HTTP endpoints and frame IDs stable.
+
+        The control plane serializes calls and locks calibration while this
+        runs. On failure the console stays alive, but no old highlights survive.
+        """
+        if self._closed:
+            raise RuntimeError("runtime is closed")
+        configure = getattr(self.source, "configure", None)
+        if not callable(configure):
+            raise RuntimeError("this frame source does not support camera selection")
+        self._status = "switching_camera"
+        try:
+            self.capture.stop(timeout_s=self.config.pipeline.stop_timeout_s)
+            self.perception.stop(timeout_s=self.config.pipeline.stop_timeout_s)
+        except Exception:
+            self._status = "camera_shutdown_failed"
+            raise  # Never reconfigure a source while a worker is still alive.
+        self._started = False
+        self.frames.clear()
+        self.states.clear()
+        self.capture.clear_metrics()
+        self.pipeline.keyboard_locator.reset()
+        self._status = "waiting_for_camera"
+        configure(camera)
+        self.config = replace(self.config, camera=camera)
+        reset_hand = getattr(self.pipeline.hand_tracker, "reset", None)
+        if callable(reset_hand):
+            reset_hand()
+        self.start(allow_camera_failure=True)
+        if self._status != "running":
+            raise RuntimeError(
+                self.source.last_error or "camera did not start; select another device or retry"
+            )
 
     def stop(self) -> None:
         if self._closed:
@@ -282,7 +331,7 @@ def build_runtime(
     """Validate every startup dependency before camera threads are started."""
 
     if source is None:
-        require_windows_runtime()
+        require_core_runtime(config.deployment.target_os)
     validate_runtime_config(config)
 
     artifacts = _load_artifacts(config)
@@ -332,7 +381,7 @@ def build_runtime(
                 min_pose_confidence=config.keyboard_tracking.min_pose_confidence,
                 direct_spatial_weight=config.keyboard_tracking.direct_weight,
                 direct_probability=config.interaction.direct_min_intensity,
-                # WindowsCameraSource deliberately preserves raw sensor
+                # OpenCVCameraSource deliberately preserves raw sensor
                 # orientation. Browser preview mirroring is a separate view.
                 source_coordinates_mirrored=False,
             ),
@@ -346,7 +395,7 @@ def build_runtime(
         )
         frame_store = LatestFrameStore()
         state_store = LatestSceneStateStore()
-        camera_source = source or WindowsCameraSource(config.camera)
+        camera_source = source or OpenCVCameraSource(config.camera)
         capture = CaptureThread(
             camera_source,
             frame_store,

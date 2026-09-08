@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from contextlib import contextmanager
+import json
 from dataclasses import dataclass
 from pathlib import Path
 from threading import Lock
@@ -17,6 +19,7 @@ from deskvision.calibration.anchor_reference import (
     marker_key_ids_from_profile,
     save_anchor_reference,
 )
+from deskvision.calibration._storage import atomic_write_json
 from deskvision.calibration.anchor_registration import AnchorRegistrationAccumulator
 from deskvision.calibration.contact_map import (
     LayoutInventory,
@@ -85,6 +88,59 @@ class KeyboardSetupController:
         self._contact_session: ContactCalibrationSession | None = None
         self._contact_locator: ArucoKeyboardLocator | None = None
 
+    @property
+    def camera_revalidation_path(self) -> Path:
+        return self.workspace.root / "camera_revalidation_required.json"
+
+    def _bind_staging_camera(self) -> None:
+        """Catch camera/config changes across restarts, not just live selection."""
+        path = self.workspace.root / "camera_binding.json"
+        identity = {name: getattr(self.camera_config, name) for name in (
+            "device_index", "backend", "width", "height", "rotate_degrees", "mirror"
+        )}
+        if path.is_file():
+            previous = json.loads(path.read_text(encoding="utf-8"))
+            if previous == identity:
+                return
+            atomic_write_json(self.camera_revalidation_path, {
+                "reason": "camera configuration changed; finalize new marker anchors",
+                "camera": identity,
+            })
+            self._registration = None
+            self._contact_session = None
+            self._contact_locator = None
+        atomic_write_json(path, identity)
+
+    @contextmanager
+    def camera_change(self, camera: CameraConfig):
+        """Serialize hardware changes with sampling; retain old files for review."""
+        with self._lock:
+            self._bind_staging_camera()
+            changed = (
+                camera.device_index != self.camera_config.device_index
+                or camera.backend != self.camera_config.backend
+            )
+            if changed:
+                atomic_write_json(self.camera_revalidation_path, {
+                    "reason": "camera changed; register and finalize markers again",
+                    "device_index": camera.device_index,
+                    "backend": camera.backend,
+                })
+                self._registration = None
+                self._contact_session = None
+                self._contact_locator = None
+            self.camera_config = camera
+            self._bind_staging_camera()
+            yield
+
+    def _require_camera_revalidation(self) -> None:
+        self._bind_staging_camera()
+        if self.camera_revalidation_path.exists():
+            raise SetupUnavailableError(
+                "camera changed: register and finalize marker anchors again before "
+                "contact sampling or applying a keyboard bundle"
+            )
+
     def _validate_workspace_isolation(self) -> None:
         staging = {
             "layout": self.workspace.layout,
@@ -114,6 +170,7 @@ class KeyboardSetupController:
         """Create setup state lazily so normal runtime does not depend on it."""
 
         self.workspace.root.mkdir(parents=True, exist_ok=True)
+        self._bind_staging_camera()
         if not self.workspace.layout.exists():
             active = load_layout_profile(self.active_artifacts.layout_profile)
             save_layout_profile(self.workspace.layout, active)
@@ -197,6 +254,7 @@ class KeyboardSetupController:
             self.workspace.draft.unlink(missing_ok=True)
             self.workspace.contact_map.unlink(missing_ok=True)
             save_anchor_reference(self.workspace.anchor, reference)
+            self.camera_revalidation_path.unlink(missing_ok=True)
             self._contact_session = None
             self._contact_locator = None
             return {
@@ -207,6 +265,7 @@ class KeyboardSetupController:
 
     def start_contact_calibration(self) -> dict[str, object]:
         with self._lock:
+            self._require_camera_revalidation()
             profile, inventory, reference = self._load_staging_contact_inputs()
             del profile
             self._contact_session = ContactCalibrationSession.resume_or_new(
@@ -304,6 +363,7 @@ class KeyboardSetupController:
 
     def apply_bundle(self) -> dict[str, object]:
         with self._lock:
+            self._require_camera_revalidation()
             self._ensure_staging_layout()
             if not self.workspace.anchor.is_file() or not self.workspace.contact_map.is_file():
                 raise SetupUnavailableError(

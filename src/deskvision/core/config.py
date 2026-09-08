@@ -11,14 +11,14 @@ from urllib.parse import urlsplit
 
 @dataclass(frozen=True, slots=True)
 class DeploymentConfig:
-    """V0.1's supported production deployment topology."""
+    """Single-host core runtime target; SteamVR remains a Windows module."""
 
     target_os: str = "windows"
     topology: str = "single_host"
 
     def __post_init__(self) -> None:
-        if self.target_os != "windows":
-            raise ValueError("V0.1 production target_os must be 'windows'")
+        if self.target_os not in {"windows", "macos"}:
+            raise ValueError("V0.1 target_os must be 'windows' or 'macos'")
         if self.topology != "single_host":
             raise ValueError("V0.1 production topology must be 'single_host'")
 
@@ -52,8 +52,10 @@ class CameraConfig:
             raise ValueError("camera source_id must be a non-empty string")
         if not isinstance(self.backend, str):
             raise TypeError("camera backend must be a string")
-        if self.backend.lower() not in {"any", "msmf", "dshow"}:
-            raise ValueError("camera backend must be 'any', 'msmf', or 'dshow'")
+        if self.backend.lower() not in {"any", "msmf", "dshow", "avfoundation"}:
+            raise ValueError(
+                "camera backend must be 'any', 'msmf', 'dshow', or 'avfoundation'"
+            )
         if self.device_index < 0:
             raise ValueError("camera device_index must be non-negative")
         if self.width <= 0 or self.height <= 0:
@@ -247,7 +249,7 @@ class RemoteInferenceConfig:
 
     This configuration reserves a secure network contract. The V0.1 runtime
     deliberately refuses to activate it; camera and inference stay together
-    on the Windows host.
+    on the configured local host.
     """
 
     enabled: bool = False

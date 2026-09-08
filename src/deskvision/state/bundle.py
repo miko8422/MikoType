@@ -75,6 +75,12 @@ class LatestFrameStateBundleStore:
         with self._condition:
             return self._latest
 
+    def clear(self) -> None:
+        with self._condition:
+            self._latest = None
+            self._generation += 1
+            self._condition.notify_all()
+
     def latest_with_generation(self) -> tuple[int, FrameStateBundle | None]:
         with self._condition:
             return self._generation, self._latest

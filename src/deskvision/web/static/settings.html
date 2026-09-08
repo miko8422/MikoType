@@ -4,14 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MikoType · Settings</title>
-    <link rel="stylesheet" href="/static/settings.css" />
+    <link rel="stylesheet" href="/static/settings.css?v=0.1.0.dev3" />
   </head>
   <body>
     <header>
       <div>
         <p class="eyebrow">MIKOTYPE · LOCAL CONTROL CONSOLE</p>
         <h1>运行参数</h1>
-        <p class="subtitle">校验并保存 Windows 本机配置；正在运行的视频与感知管线不会被热替换。</p>
+        <p class="subtitle">配置本机视频、手部追踪和键盘映射。摄像头可单独即时切换；其他参数保存后重启生效。</p>
       </div>
       <div class="status-cluster">
         <span id="service-status" class="badge waiting">正在读取服务</span>
@@ -81,6 +81,29 @@
         </p>
       </section>
 
+      <section class="card camera-card" aria-labelledby="camera-heading">
+        <div class="card-heading">
+          <div>
+            <p class="eyebrow">LOCAL CAMERA</p>
+            <h2 id="camera-heading">选择摄像头</h2>
+          </div>
+          <span id="camera-status" class="badge waiting">正在读取设备状态</span>
+        </div>
+        <p class="group-description">摄像头由本机服务采集，浏览器不单独打开摄像头。扫描仅在点击后执行；系统可能请求摄像头权限。</p>
+        <p id="camera-current" class="camera-current mono">当前设备：—</p>
+        <div class="camera-controls">
+          <label>摄像头设备<select id="camera-device" disabled><option value="">先扫描设备，或手动输入编号</option></select></label>
+          <label>采集后端<select id="camera-backend" disabled></select></label>
+          <label id="camera-manual-field" hidden>手动设备编号<input id="camera-index" type="number" min="0" max="32" step="1" value="0" disabled /></label>
+        </div>
+        <div class="button-row">
+          <button id="camera-scan" type="button" class="secondary" disabled>扫描摄像头</button>
+          <button id="camera-apply" type="button" class="primary" disabled>应用并打开摄像头</button>
+        </div>
+        <p id="camera-warning" class="notice">切换摄像头或移动相机后，请重新检查 Marker reference 和键位校准；原有键盘文件不会自动删除。</p>
+        <p id="camera-message" class="message" role="status"></p>
+      </section>
+
       <form id="settings-form" novalidate>
         <div id="settings-groups" class="settings-groups" aria-live="polite">
           <section class="card loading-card">正在读取可配置参数…</section>
@@ -107,10 +130,10 @@
     </main>
 
     <footer>
-      <span>Windows-local</span>
+      <span id="platform-label">Local camera &amp; tracking</span>
       <span>loopback only</span>
       <span>保存与运行状态明确分离</span>
     </footer>
-    <script src="/static/settings.js"></script>
+    <script src="/static/settings.js?v=0.1.0.dev3"></script>
   </body>
 </html>

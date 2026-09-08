@@ -22,3 +22,13 @@ artifact revision gates, wrong-frame fail-closed behavior, dropped intermediate
 frames, processor-error invalidation, input-freeze invalidation, and bounded
 shutdown. No Demo adapter participates in these production tests. Real camera
 and real MediaPipe inference remain explicit hardware/manual validation.
+
+`test_mapping_integration.py` additionally renders real `DICT_4X4_50` marker
+pixels from the checked-in measured anchor bundle. It exercises the actual
+OpenCV detector, homography, Contact Map ranking, neighbor glow, and adaptive
+3D node binding together, at front-facing and perspective views for three
+calibrated keys. A synthetic same-frame index fingertip is the only injected
+perception result. Removing all markers must clear highlights. The seven
+checks use in-memory images/model generation, never a camera, real ML model,
+live WebUI, or writable calibration files; they do not replace physical
+camera/MediaPipe accuracy acceptance.

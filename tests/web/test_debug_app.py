@@ -66,6 +66,19 @@ def _client(context: DebugWebContext) -> TestClient:
     return TestClient(create_debug_app(context), base_url=BASE_URL)
 
 
+def test_state_socket_clears_highlights_and_advances_cursor_on_camera_change(tmp_path):
+    context = _context(tmp_path)
+    state = context.states.latest()
+    with _client(context).websocket_connect("ws://127.0.0.1:9000/ws/state") as websocket:
+        assert websocket.receive_json()["source_id"] == "camera"
+        context.states.clear()
+        reset = websocket.receive_json()
+        assert reset["diagnostics"]["status"] == "stale"
+        assert reset["key_highlights"] == []
+        context.states.publish(state)
+        assert websocket.receive_json()["source_id"] == "camera"
+
+
 def test_debug_app_exposes_state_health_and_artifacts(tmp_path: Path) -> None:
     client = _client(_context(tmp_path))
 

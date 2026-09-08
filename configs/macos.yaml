@@ -1,0 +1,84 @@
+# Portable core verification on Mac: camera, MediaPipe, keyboard settings,
+# calibration, mapping and adaptive 3D preview. No SteamVR Home runtime.
+deployment:
+  target_os: "macos"
+  topology: "single_host"
+
+app:
+  host: "127.0.0.1"
+  port: 9000
+  log_level: "INFO"
+
+camera:
+  source_id: "macos_main"
+  backend: "avfoundation"
+  device_index: 0
+  width: 1280
+  height: 720
+  fps: 60
+  rotate_degrees: 0
+  mirror: false
+
+stream:
+  preview_type: "mjpeg"
+  jpeg_quality: 80
+  max_preview_fps: 30
+
+pipeline:
+  frame_policy: "latest"
+  perception_enabled: true
+  frame_wait_timeout_ms: 50
+  stop_timeout_s: 5.0
+
+hand_tracking:
+  enabled: true
+  num_hands: 2
+  min_detection_confidence: 0.5
+  min_presence_confidence: 0.5
+  min_tracking_confidence: 0.5
+  metrics_acknowledged: false
+
+keyboard_tracking:
+  enabled: true
+  dictionary: "DICT_4X4_50"
+  smoothing_alpha: 0.38
+  max_coast_ms: 800.0
+  min_pose_confidence: 0.25
+  min_hand_confidence: 0.35
+  top_k: 3
+  direct_weight: 0.35
+  experimental: true
+
+interaction:
+  neighbor_glow_enabled: true
+  neighbor_glow_scale: 0.55
+  direct_min_intensity: 0.35
+
+# Local Mac adjustments never overwrite the checked-in Windows seed bundle.
+artifacts:
+  layout_profile: "../data/local/macos/keyboard/layout.json"
+  anchor_reference: "../data/local/macos/keyboard/anchor_reference.json"
+  contact_map: "../data/local/macos/keyboard/contact_map.json"
+  model_glb: "../data/local/macos/keyboard/adaptive_keyboard.glb"
+  model_manifest: "../data/local/macos/keyboard/adaptive_keyboard_manifest.json"
+
+debug_ui:
+  enabled: true
+  mirror_preview: true
+  websocket_state: true
+  expose_model_download: true
+
+diagnostics:
+  stale_frame_threshold_ms: 500
+  metrics_interval_ms: 1000
+
+# Reserved contract only. All core inference stays local during Mac testing.
+remote_inference:
+  enabled: false
+  transport: "websocket"
+  endpoint: null
+  token_env: "MIKOTYPE_REMOTE_INFERENCE_TOKEN"
+  require_tls: true
+  max_frame_bytes: 4194304
+  max_in_flight: 1
+  response_timeout_ms: 1000

@@ -140,9 +140,26 @@ def test_windows_camera_backends_are_explicit(backend: str) -> None:
     assert CameraConfig(backend=backend).backend == backend
 
 
-def test_non_windows_camera_backend_is_rejected() -> None:
+def test_macos_camera_backend_is_explicit() -> None:
+    assert CameraConfig(backend="avfoundation").backend == "avfoundation"
+
+
+def test_unknown_camera_backend_is_rejected() -> None:
     with pytest.raises(ValueError, match="msmf"):
-        CameraConfig(backend="avfoundation")
+        CameraConfig(backend="invented_backend")
+
+
+def test_macos_config_isolates_calibration_from_windows_seed() -> None:
+    config = load_config(REPOSITORY / "configs/macos.yaml", include_local_override=False)
+    windows = load_config(REPOSITORY / "configs/windows.yaml", include_local_override=False)
+
+    assert config.deployment.target_os == "macos"
+    assert config.camera.backend == "avfoundation"
+    assert config.camera.source_id == "macos_main"
+    assert config.remote_inference.enabled is False
+    for name in config.artifacts.__dataclass_fields__:
+        assert getattr(config.artifacts, name).is_relative_to(REPOSITORY / "data/local/macos")
+        assert getattr(config.artifacts, name) != getattr(windows.artifacts, name)
 
 
 def test_remote_inference_is_disabled_and_requires_an_endpoint() -> None:

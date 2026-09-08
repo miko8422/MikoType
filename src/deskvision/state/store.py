@@ -56,6 +56,14 @@ class LatestSceneStateStore:
         with self._condition:
             return self._latest
 
+    def clear(self) -> None:
+        """Clear obsolete camera results without resetting subscriber cursors."""
+        with self._condition:
+            self._latest = None
+            self._generation += 1
+            self._condition.notify_all()
+        self.bundles.clear()
+
     def latest_with_generation(self) -> tuple[int, SceneState | None]:
         with self._condition:
             return self._generation, self._latest

@@ -8,11 +8,12 @@ from sparse ArUco markers, maps fingertips to user-calibrated keys, generates
 an adaptive 3D keyboard, and publishes revision-gated scene data for a VR
 consumer.
 
-> **V0.1 deployment scope:** camera capture, MediaPipe/ArUco inference,
-> keyboard mapping, the FastAPI state/model service, and the SteamVR consumer
-> are all intended to run on the same Windows x64 PC. This is the only V0.1
-> production topology. The vision/mapping core is implemented; Windows
-> hardware acceptance and the live SteamVR consumer are still incomplete.
+> **Current development workflow:** run the shared production vision/mapping
+> code and the complete keyboard WebUI locally on macOS first. Windows remains
+> the final single-PC VR deployment target; SteamVR Home integration and headset
+> acceptance are a separate Windows-only module. The Mac workflow does not
+> require SteamVR or a connection to a Windows machine, and does not enable
+> distributed inference.
 
 The Python distribution and legacy CLI retain the names `vr-desk-vision` and
 `deskvision` for compatibility. For source checkouts, both uv and Conda use
@@ -22,8 +23,8 @@ exists elsewhere. It uses the active Python environment for dependencies.
 
 ## What is implemented
 
-- Latest-frame-only OpenCV capture with Windows MSMF, DSHOW, or automatic
-  backend selection.
+- Latest-frame-only OpenCV capture with macOS AVFoundation and Windows MSMF,
+  DSHOW, or automatic backend selection, plus WebUI camera selection.
 - MediaPipe tracking for up to two hands with 21 landmarks per hand.
 - A `DICT_4X4_50` sparse-marker keyboard reference frame.
 - User key inventory, five-contact-per-key calibration, and revision checks.
@@ -40,7 +41,7 @@ keypress or inject operating-system keyboard input.
 ## V0.1 architecture
 
 ```text
-One Windows x64 PC
+One local Mac (vision/mapping validation) or Windows PC
 
 Camera
   -> latest FramePacket
@@ -48,14 +49,85 @@ Camera
   -> calibrated key candidates and highlights
   -> local SceneState + adaptive keyboard GLB
   -> FastAPI on 127.0.0.1
-  -> same-host SteamVR consumer (next module; not complete)
-  -> SteamVR Home / HMD
+  -> browser: settings, calibration, hands and key-state highlights
+     + downloadable adaptive 3D keyboard GLB
+
+Separate Windows acceptance module (not started by the vision service):
+  local FastAPI -> SteamVR consumer -> SteamVR Home / HMD
+  (live consumer and spatial alignment are not complete)
 ```
 
 Every live vision stage uses the same captured frame. Slow downstream work
 skips superseded frames instead of building a latency queue. The local service
-is restricted to loopback so camera and state data do not leave the Windows
-machine in V0.1.
+is restricted to loopback so camera and state data stay on the host in V0.1.
+
+## macOS local development and validation
+
+Use this path to test camera capture, MediaPipe hands, marker localization,
+the full keyboard setup workflow, key-state highlights, and adaptive GLB generation before Windows
+hardware testing. Use Python 3.12 and the same locked dependencies and
+`src/deskvision` code as Windows; no old Demo server is needed.
+
+From this repository in Terminal:
+
+```bash
+uv sync --locked --python 3.12 --extra test
+uv run --locked python ./run_mikotype.py doctor --config configs/macos.yaml
+uv run --locked python ./run_mikotype.py run \
+  --config configs/macos.yaml \
+  --acknowledge-mediapipe-metrics
+```
+
+For an already activated Conda environment installed with `python -m pip
+install -e ".[test]"`, omit `uv run --locked`. Do not mix Conda and uv
+environments. Allow camera access to the application hosting Python, such as
+Terminal or Codex, when macOS prompts. MikoType does not modify system privacy
+settings. Close an older camera Demo if it is using the same device.
+
+Open the **actual** `OPEN THIS EXACT URL` printed after startup. The automatic
+port range is 9000–10000. Use this single console in order:
+
+1. `/settings`: refresh the camera list, select the intended camera and apply
+   it. If the default camera could not open, the console remains available for
+   selection/retry. AVFoundation is the explicit Mac backend. Verify the preview
+   and actual
+   frame metrics; a requested FPS is not a guarantee of hardware throughput.
+2. `/setup`: adjust key positions/sizes, save the staging layout, register the
+   physical markers, then capture five right-index contacts per key. After a
+   complete calibration, apply the keyboard bundle and restart as prompted.
+3. `/`: check the cyan raw MediaPipe hand skeleton/fingertips first; these do
+   not require a visible keyboard marker. Green bubbles and key highlights
+   represent mapped fingertips/candidates and require a usable keyboard pose.
+   Download the generated 3D keyboard, then cover markers or move hands out of
+   view to check that stale highlights disappear. A highlight is not a keypress.
+
+The Mac profile stores its active keyboard artifacts and staging workspace
+under gitignored `data/local/macos/`; the first `run` or `setup` initializes the
+local keyboard from the committed sample. Existing local calibration is not
+overwritten. `check` is read-only and does not initialize a missing local
+profile. User parameters are isolated in `configs/macos.local.yaml`.
+Windows' configuration, sample keyboard files, Demo outputs, and test fixtures
+are not destinations for Mac WebUI writes. The included keyboard is a seed,
+not proof of calibration for a different camera/keyboard setup: register and
+calibrate your physical setup before assessing key accuracy.
+
+Camera status reads do not scan or open devices. Scanning is an explicit action;
+on Mac it reads AVFoundation's device inventory. If the device is missing from
+the list, a manual device-index option is available. Applying a camera switch
+briefly pauses tracking, clears previous frame/state data, and saves the choice
+only after the new camera opens. It does not remove your keyboard files.
+The dedicated camera selector applies live; camera parameters edited in the
+ordinary settings form still require a restart.
+
+Changing device/backend keeps existing staging files for review, but blocks
+contact sampling and bundle application until markers are registered and
+finalized again. Persisted `camera_binding.json` also catches camera/config
+changes across restarts. Changing the physical viewpoint cannot be detected
+from configuration alone: recheck the marker reference and contact accuracy.
+The Mac
+browser's key-state view validates the mapping pipeline only; SteamVR Home visibility,
+headset input, and camera-to-VR spatial alignment are tested separately on
+Windows.
 
 ## Windows local quick start
 
@@ -127,7 +199,7 @@ python .\run_mikotype.py run `
   --acknowledge-mediapipe-metrics
 ```
 
-For this revision, `--version` reports `MikoType 0.1.0.dev2` and the source path
+For this revision, `--version` reports `MikoType 0.1.0.dev3` and the source path
 inside this checkout. `doctor` reports installation/config-file diagnostics;
 `"status": "ready"` is not Windows camera, network, or SteamVR acceptance. The
 launcher also sets its working directory to the repository root, so relative
@@ -162,16 +234,20 @@ Open that actual URL; the default automatic range is 9000–10000. One process
 and one camera then host the complete local control console:
 
 - `/` shows the exact-frame video, hand/keyboard state, quality metrics, and
-  adaptive keyboard highlights.
-- `/settings` validates and saves allowlisted camera, preview, MediaPipe,
-  Marker, interaction, pipeline, and diagnostic parameters.
+  key highlights in a perspective key-state view, plus an adaptive GLB download.
+  The current production page does not load/render the GLB itself.
+- `/settings` selects the active camera and validates/saves allowlisted
+  camera, preview, MediaPipe, Marker, interaction, pipeline, and diagnostic
+  parameters.
 - `/setup` adjusts the existing keys' positions and sizes, registers Marker
   anchors, captures contacts in the layout's key order, and rebuilds the
   adaptive 3D keyboard.
 
 WebUI settings are written atomically to the gitignored
-`configs/windows.local.yaml`. They are loaded automatically on the next start;
-the live camera and inference objects are never partially hot-swapped.
+`configs/windows.local.yaml`. The camera selection action can apply a device
+change to the current session; the ordinary parameter editor marks changes that
+still need a restart. Follow the page's result rather than assuming every
+saved setting is already active.
 
 By default, `run` and `setup` select within **9000–10000 inclusive**. A preferred
 port inside that range is tried first, followed by the remaining ports from
@@ -205,11 +281,11 @@ Strict mode honors the explicit/configured port, including a port outside
 an incompatible process. The service does not yet start a live SteamVR consumer.
 
 The default camera backend is `msmf`. If that camera cannot open reliably, use
-the Settings page to try `dshow`, then `any`. Change the device index if OpenCV
-selects the wrong camera. V0.1 requests resolution/FPS but does not yet verify
+the Settings page to try `dshow`, then `any`. Refresh/select a camera in the
+camera panel if the wrong device is active. V0.1 requests resolution/FPS but does not yet verify
 that every camera driver accepted those values.
 
-## Keyboard setup on Windows
+## Keyboard setup (shared Mac/Windows control plane)
 
 With the main `run` command active, open its Setup page from the control console
 at the exact URL printed by the terminal; do not assume a fixed port or start a
@@ -308,7 +384,7 @@ a remote video service.
 
 ## API boundary
 
-The same-host Windows consumer can use:
+The local browser and future same-host Windows VR consumer can use:
 
 - `GET /api/state` or the current diagnostic `WS /ws/state` for latest
   `SceneState 0.2`. A future VR consumer must enforce its own TTL from
@@ -318,16 +394,19 @@ The same-host Windows consumer can use:
 - `GET /api/model/manifest` and `GET /api/model/keyboard.glb` for the adaptive
   3D keyboard.
 - `GET /api/health` for local diagnostics.
+- `GET /api/camera` for camera status; explicit `POST /api/camera/scan` and
+  `POST /api/camera/select` power the local camera panel, not the VR data path.
 - `WS /ws/bundle`, `/snapshot.jpg`, and `/stream.mjpg` for the local inspector,
   not the SteamVR hot path.
 
 ## Repository layout
 
 ```text
-src/deskvision/     Windows-targeted production vision/mapping runtime
+src/deskvision/     shared production vision/mapping runtime
 run_mikotype.py     repository-anchored source launcher
-configs/            canonical Windows V0.1 configuration
+configs/            separate macOS and Windows configurations
 data/keyboards/     calibrated sample and adaptive GLB
+data/local/macos/   ignored Mac calibration/model/staging artifacts
 contracts/          SceneState and experimental remote wire contracts
 tests/              isolated automated tests
 demo/               experiments; never imported by production
@@ -355,12 +434,14 @@ uv run --locked --extra test pytest -q -m "hardware and not soak"
 uv run --locked --extra test pytest -q -m soak
 ```
 
-Non-Windows hosts may run offline checks and automated tests, but the
-production `run` and `setup` commands fail before opening hardware.
+macOS can run the full non-VR service with `configs/macos.yaml`; Windows uses
+`configs/windows.yaml`. A successful automated run does not establish camera
+accuracy, requested FPS, or VR hardware acceptance. Keep real camera/manual
+checks explicit and separate from the default hardware-free suite.
 
 ## Privacy and current limits
 
-- V0.1 binds FastAPI to loopback and keeps frames on the same Windows host.
+- V0.1 binds FastAPI to loopback and keeps frames on the same host.
 - Setup remains loopback-only and has no image-upload path.
 - Remote inference is disabled and has no operational network adapter.
 - Setup artifacts are revision checked before activation.

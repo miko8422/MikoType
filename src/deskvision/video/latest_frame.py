@@ -40,6 +40,12 @@ class LatestFrameStore:
         with self._condition:
             return self._latest
 
+    def clear(self) -> None:
+        """Invalidate old-camera data while its producer is stopped."""
+        with self._condition:
+            self._latest = None
+            self._condition.notify_all()
+
     def wait_for_newer(
         self,
         after_frame_id: int | None = None,

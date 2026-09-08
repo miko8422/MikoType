@@ -129,6 +129,17 @@ class CaptureThread:
         with self._state_lock:
             return self._thread is not None and self._thread.is_alive()
 
+    def clear_metrics(self) -> None:
+        """Reset camera-specific counters only after capture has stopped."""
+        with self._state_lock:
+            if self._thread is not None and self._thread.is_alive():
+                raise RuntimeError("stop capture before clearing camera metrics")
+            self._last_frame = None
+            self._frame_times_ns.clear()
+            self._read_failures = 0
+            self._frames_captured = 0
+            self._last_error = None
+
     def metrics(self) -> HealthSnapshot:
         with self._state_lock:
             status = self._status

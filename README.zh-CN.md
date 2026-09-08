@@ -6,10 +6,10 @@ MikoType 是一个面向 VR 的实体键盘视觉定位与交互管线。系统�
 追踪手部，通过少量 ArUco Marker 建立键盘参考平面，将指尖映射到用户校准后
 的键位，生成自适应 3D 键盘，并向 VR 消费端发布经过版本校验的场景数据。
 
-> **V0.1 部署范围：**摄像头采集、MediaPipe/ArUco 推理、键盘映射、FastAPI
-> 状态与模型服务以及 SteamVR 消费端都计划运行在同一台 Windows x64 电脑上。
-> 这是 V0.1 唯一的生产拓扑。视觉与映射核心已经实现，但 Windows 实机验收和
-> SteamVR 实时消费端仍未完成。
+> **当前开发方式：**先在 Mac 本机运行共用的生产视觉/映射代码和完整键盘 WebUI，
+> 完成非 VR 部分的开发与验证。最终 VR 部署仍面向单台 Windows 电脑；SteamVR
+> Home 接入和头显验收独立为 Windows 模块。Mac 流程不依赖 SteamVR，不需要连接
+> Windows，也没有启用分布式推理。
 
 Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvision`。从源码
 启动时，uv 和 Conda 都使用 [`run_mikotype.py`](run_mikotype.py)。该入口会优先
@@ -18,7 +18,8 @@ Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvisi
 
 ## 已实现功能
 
-- OpenCV 只保留最新帧的视频采集，支持 Windows MSMF、DSHOW 和自动选择后端。
+- OpenCV 只保留最新帧的视频采集，支持 macOS AVFoundation、Windows MSMF、
+  DSHOW 和自动选择后端，并可在 WebUI 选择摄像头。
 - MediaPipe 双手 21 点追踪。
 - 使用 `DICT_4X4_50` 稀疏 Marker 建立键盘参考坐标系。
 - 用户键位清单、每键五次触点校准和完整版本一致性检查。
@@ -33,7 +34,7 @@ Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvisi
 ## V0.1 架构
 
 ```text
-同一台 Windows x64 电脑
+同一台 Mac（视觉/映射验证）或 Windows 电脑
 
 摄像头
   -> 最新 FramePacket
@@ -41,13 +42,69 @@ Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvisi
   -> 校准后的候选键与高亮
   -> 本机 SceneState + 自适应键盘 GLB
   -> 127.0.0.1 FastAPI
-  -> 同机 SteamVR 消费端（下一个模块，尚未完成）
-  -> SteamVR Home / 头显
+  -> 浏览器：参数、校准、手部、键位状态高亮
+     + 可下载的自适应 3D 键盘 GLB
+
+独立的 Windows 验收模块（视觉服务不会自动启动）：
+  本机 FastAPI -> SteamVR 消费端 -> SteamVR Home / 头显
+  （实时消费端和空间对齐尚未完成）
 ```
 
 所有实时视觉阶段使用同一个采集帧。下游变慢时会跳过已被替代的帧，不会堆积
-延迟队列。V0.1 的本地服务被限制为回环地址，因此画面和状态不会离开 Windows
-主机。
+延迟队列。V0.1 的本地服务被限制为回环地址，因此画面和状态不会离开本机。
+
+## macOS 本机开发与验证
+
+先通过此流程测试摄像头、MediaPipe 手部、Marker 定位、完整键盘设置、键位高亮
+与自适应 GLB 生成，再到 Windows 做硬件测试。Mac 与 Windows 使用同一份 `src/deskvision`
+生产代码、Python 3.12 和锁定依赖，不需要启动旧 Demo 服务。
+
+在仓库目录下的终端执行：
+
+```bash
+uv sync --locked --python 3.12 --extra test
+uv run --locked python ./run_mikotype.py doctor --config configs/macos.yaml
+uv run --locked python ./run_mikotype.py run \
+  --config configs/macos.yaml \
+  --acknowledge-mediapipe-metrics
+```
+
+若已激活并用 `python -m pip install -e ".[test]"` 安装好 Conda 环境，省略
+`uv run --locked` 前缀即可，不要混用两种环境。macOS 弹出摄像头权限提示时，
+允许承载 Python 的应用（例如终端或 Codex）访问；MikoType 不会替你修改系统
+隐私设置。同一摄像头若被旧 Demo 使用，请先关闭旧 Demo。
+
+只打开启动后 `OPEN THIS EXACT URL` 打印的**实际地址**，自动端口范围仍为
+9000–10000。在这一个控制台内依次完成：
+
+1. `/settings`：刷新摄像头列表，选择需要的设备并应用。Mac 使用明确的
+   AVFoundation 后端。默认摄像头打开失败时，控制台仍可用于选择设备并重试。
+   检查预览和实际帧率，配置中的请求 FPS 不代表硬件承诺值。
+2. `/setup`：调整键位位置/尺寸，保存 staging Layout，注册实体 Marker，
+   再为每键采集五次右手食指触点。完成后应用键盘包，并按提示重启。
+3. `/`：先观察青色的 MediaPipe 原始手部骨架/指尖，它们不要求画面中有 Marker。
+   绿色 Bubble 和键帽高亮是已经映射的指尖/候选键，需要可用的键盘位姿。
+   下载生成的 3D 键盘，并遮住 Marker 或将手移出画面，检查过期高亮会清除；
+   高亮不代表机械按键触发。
+
+Mac 的生效键盘文件与校准工作区放在 Git 忽略的 `data/local/macos/` 下；首次
+执行 `run` 或 `setup` 会用仓库已提交的示例初始化本地键盘，不覆盖已有本地校准。
+`check` 是只读检查，不会初始化尚不存在的本地配置产物。
+参数单独写入 `configs/macos.local.yaml`。Mac WebUI 不会写入 Windows 配置、
+仓库示例键盘、Demo 输出或测试夹具。附带键盘只是初始种子，不能证明另一套
+摄像头/键盘已经校准；请为当前实体设备重新注册与采样后再评估键位准确度。
+
+读取摄像头状态不会扫描或打开设备；扫描由用户主动触发，Mac 读取的是
+AVFoundation 设备清单。找不到时可以手动输入设备编号。应用切换时追踪会短暂
+暂停，并清空此前的帧/状态；新摄像头打开成功后才保存选择，不会删除键盘文件。
+专用摄像头选择器可即时应用；普通参数表单内修改的摄像头参数仍需重启。
+
+更换设备/后端后，旧 staging 文件保留供复查，但系统会阻止触点采样和应用键盘包，
+直到重新注册并锁定 Marker。持久化的 `camera_binding.json` 也会检测跨重启的
+摄像头/配置变化。仅改变相机实际位置无法由配置检测，需要自行复查 Marker reference
+与触点准确度。Mac 浏览器中键位状态视图通过，只代表映射管线的验证，不代表
+SteamVR Home 可见、头显输入或摄像头到 VR 的空间对齐已通过；后者在 Windows
+单独验收。
 
 ## Windows 本机启动
 
@@ -118,7 +175,7 @@ python .\run_mikotype.py run `
   --acknowledge-mediapipe-metrics
 ```
 
-本次版本的 `--version` 应显示 `MikoType 0.1.0.dev2`，源码路径应位于当前仓库。
+本次版本的 `--version` 应显示 `MikoType 0.1.0.dev3`，源码路径应位于当前仓库。
 `doctor` 只诊断安装和配置文件；`"status": "ready"` 不代表 Windows 摄像头、
 网络或 SteamVR 已验收。入口还会将工作目录设为仓库根目录，因此命令中的相对
 路径以仓库根目录为准。若要单独核查旧的裸命令来自哪里，可执行：
@@ -147,14 +204,16 @@ python -c "import deskvision; print(deskvision.__file__)"
 最终使用某个固定端口；默认自动选择范围为 9000–10000。随后一个进程和一路
 摄像头会在同一本地控制台提供：
 
-- `/`：严格同帧的视频、手部/键盘状态、质量指标和自适应键盘高亮。
-- `/settings`：校验并保存白名单内的摄像头、预览、MediaPipe、Marker、交互、
-  流水线和诊断参数。
+- `/`：严格同帧的视频、手部/键盘状态、质量指标、透视键位状态高亮和自适应
+  GLB 下载。当前生产页面不是加载 GLB 本体的 3D 渲染器。
+- `/settings`：选择当前摄像头，并校验保存白名单内的摄像头、预览、MediaPipe、
+  Marker、交互、流水线和诊断参数。
 - `/setup`：调整现有键位的位置与尺寸、注册 Marker Anchor、按键位图
   顺序采集指尖触点，并重建自适应 3D 键盘。
 
-WebUI 参数会原子写入 Git 忽略的 `configs/windows.local.yaml`，下次启动时自动
-加载。运行中的摄像头和推理对象不会被局部热替换，界面会明确提示需要重启。
+WebUI 参数会原子写入 Git 忽略的 `configs/windows.local.yaml`。摄像头选择操作
+可以在当前会话应用设备切换；普通参数编辑器仍会标明哪些变更需要重启。
+以界面结果为准，不要把“已保存”理解为全部参数都已在运行中生效。
 
 `run` 和 `setup` 默认在 **9000–10000（包含两端）** 中选择端口。首选端口在范围
 内时先尝试它，再从 9000 起尝试区间内其余端口；旧配置或本地覆盖文件中的 8765
@@ -184,10 +243,10 @@ uv run --locked python .\run_mikotype.py run `
 启动 SteamVR 实时消费端。
 
 默认摄像头后端是 `msmf`。如果摄像头无法稳定打开，可在参数设置页依次尝试
-`dshow`、`any`；OpenCV 选错摄像头时修改设备编号。V0.1 会请求分辨率和 FPS，
+`dshow`、`any`；选错摄像头时在摄像头面板刷新并选择设备。V0.1 会请求分辨率和 FPS，
 但暂不验证所有摄像头驱动是否真正接受了这些参数。
 
-## Windows 键盘校准
+## 键盘校准（Mac/Windows 共用控制台）
 
 主 `run` 命令运行时，从终端打印的准确地址进入控制台并打开其中的 Setup 页面；
 不要假定使用某个固定端口，也不要再启动第二个服务。下面的兼容命令只在没有匹配的
@@ -277,7 +336,7 @@ WebSocket 是无鉴权的本机诊断接口，不能直接暴露为远程视频�
 
 ## 本机 API 边界
 
-同机 Windows 消费端可以使用：
+本机浏览器和后续的同机 Windows VR 消费端可以使用：
 
 - `GET /api/state` 或当前诊断用的 `WS /ws/state` 获取最新 `SceneState 0.2`。
   后续 VR 消费端必须根据 `emitted_at_ns` 自行执行 TTL，并在断线、状态过期、
@@ -285,16 +344,19 @@ WebSocket 是无鉴权的本机诊断接口，不能直接暴露为远程视频�
 - `GET /api/layout` 获取当前实体键位清单。
 - `GET /api/model/manifest` 和 `GET /api/model/keyboard.glb` 获取自适应 3D 键盘。
 - `GET /api/health` 获取本机诊断状态。
+- `GET /api/camera` 获取摄像头状态；主动调用 `POST /api/camera/scan` 和
+  `POST /api/camera/select` 扫描、切换设备，仅供本机摄像头面板使用，不是 VR 数据路径。
 - `WS /ws/bundle`、`/snapshot.jpg` 和 `/stream.mjpg` 仅供本机检查界面使用，
   不进入 SteamVR 热路径。
 
 ## 项目结构
 
 ```text
-src/deskvision/     面向 Windows 的生产视觉与映射运行时
+src/deskvision/     共用的生产视觉与映射运行时
 run_mikotype.py     固定加载当前仓库的源码入口
-configs/            Windows V0.1 标准配置
+configs/            分离的 macOS 和 Windows 配置
 data/keyboards/     校准示例和自适应 GLB
+data/local/macos/   忽略提交的 Mac 校准、模型与 staging 文件
 contracts/          SceneState 和实验性远端传输契约
 tests/              隔离的自动化测试
 demo/               实验代码，生产环境不会导入
@@ -320,12 +382,13 @@ uv run --locked --extra test pytest -q -m "hardware and not soak"
 uv run --locked --extra test pytest -q -m soak
 ```
 
-非 Windows 主机可以执行离线检查和自动化测试，但生产 `run` 与 `setup` 命令会
-在打开硬件前拒绝启动。
+macOS 使用 `configs/macos.yaml` 可以运行完整的非 VR 服务，Windows 使用
+`configs/windows.yaml`。自动化测试通过不代表摄像头精度、请求帧率或 VR 硬件
+验收通过；真实摄像头和人工测试需明确执行，与默认无硬件测试保持分离。
 
 ## 隐私与当前限制
 
-- V0.1 的 FastAPI 只绑定回环地址，画面留在同一台 Windows 主机。
+- V0.1 的 FastAPI 只绑定回环地址，画面留在本机。
 - Setup 永远只允许本机访问，而且没有上传图片入口。
 - 远端推理默认关闭，目前没有可运行的网络适配器。
 - Setup 产物通过版本匹配后才能启用。

@@ -4,6 +4,7 @@ import pytest
 
 from deskvision.core.config import CameraConfig
 from deskvision.video.windows_camera import CameraOpenError, WindowsCameraSource
+from deskvision.video.opencv_camera import CameraSourceError, OpenCVCameraSource
 
 
 pytestmark = pytest.mark.unit
@@ -44,6 +45,7 @@ class FakeCV2:
     CAP_ANY = 0
     CAP_MSMF = 1400
     CAP_DSHOW = 700
+    CAP_AVFOUNDATION = 1200
     CAP_PROP_FRAME_WIDTH = 3
     CAP_PROP_FRAME_HEIGHT = 4
     CAP_PROP_FPS = 5
@@ -136,3 +138,43 @@ def test_missing_backend_is_explicit() -> None:
     with pytest.raises(CameraOpenError):
         source.open()
     assert "msmf" in (source.last_error or "")
+
+
+def test_legacy_windows_camera_name_reuses_shared_implementation() -> None:
+    assert WindowsCameraSource is OpenCVCameraSource
+
+
+def test_macos_camera_backend_and_actionable_open_error() -> None:
+    observed = []
+
+    def factory(index: int, backend: int) -> FakeCapture:
+        observed.append((index, backend))
+        return FakeCapture(opened=False)
+
+    source = OpenCVCameraSource(
+        CameraConfig(backend="avfoundation", device_index=2),
+        capture_factory=factory,
+        cv2_module=FakeCV2(),
+    )
+    with pytest.raises(CameraOpenError, match="Privacy & Security"):
+        source.open()
+    assert observed == [(2, FakeCV2.CAP_AVFOUNDATION)]
+
+
+def test_reconfigure_requires_closed_camera_and_preserves_frame_sequence() -> None:
+    source = OpenCVCameraSource(
+        capture_factory=lambda _index, _backend: FakeCapture(),
+        cv2_module=FakeCV2(),
+    )
+    source.open()
+    before = source.read()
+    with pytest.raises(CameraSourceError, match="close the camera"):
+        source.configure(CameraConfig(device_index=1))
+    source.close()
+    source.configure(CameraConfig(device_index=1, source_id="second"))
+    source.open()
+    after = source.read()
+    source.close()
+    assert before is not None and after is not None
+    assert after.source_id == "second"
+    assert after.frame_id > before.frame_id

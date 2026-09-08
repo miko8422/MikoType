@@ -124,6 +124,20 @@ class MediaPipeHandTracker:
             ) from exc
         return mp, landmarker
 
+    def reset(self) -> None:
+        """Forget VIDEO-mode temporal tracking after an explicit camera change."""
+        with self._lock:
+            if self._closed:
+                raise RuntimeError("MediaPipeHandTracker is closed")
+            mp, replacement = self._load_runtime(Path(self.config.model_path), self.config)
+            try:
+                self._landmarker.close()
+            except Exception:
+                replacement.close()
+                raise
+            self._mp, self._landmarker = mp, replacement
+            self._last_timestamp_ms = -1
+
     def track(self, frame: FramePacket) -> HandTrackingResult:
         with self._lock:
             if self._closed:
