@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
+import subprocess
+import sys
 import tomllib
 
 import pytest
@@ -43,7 +46,7 @@ def test_doctor_reports_stale_checkout_without_touching_hardware(
     config = tmp_path / "windows.yaml"
     config.write_text("app:\n  port: 8765\n", encoding="utf-8")
     monkeypatch.setattr(
-        "deskvision.main._runtime_identity",
+        "deskvision.cli_diagnostics.runtime_identity",
         lambda: {
             "package_version": __version__,
             "distribution_version": "0.1.0.dev0",
@@ -68,3 +71,36 @@ def test_doctor_reports_stale_checkout_without_touching_hardware(
     assert payload["status"] == "attention_required"
     assert payload["checks"]["source_matches_current_checkout"] is False
     assert "force-reinstall" in payload["repair"]
+
+
+@pytest.mark.integration
+def test_checkout_launcher_ignores_stale_import_path_and_external_cwd(tmp_path: Path) -> None:
+    repository = Path(__file__).resolve().parents[1]
+    stale_source = tmp_path / "old-install"
+    package = stale_source / "deskvision"
+    package.mkdir(parents=True)
+    (package / "__init__.py").write_text(
+        "raise RuntimeError('stale install imported')\n", encoding="utf-8"
+    )
+    environment = {**os.environ, "PYTHONPATH": str(stale_source)}
+    result = subprocess.run(
+        [sys.executable, str(repository / "run_mikotype.py"), "--version"],
+        cwd=tmp_path,
+        env=environment,
+        text=True,
+        capture_output=True,
+        timeout=20,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert f"MikoType {__version__}" in result.stdout
+    assert str(repository / "src" / "deskvision" / "main.py") in result.stdout
+    assert "stale install" not in result.stdout + result.stderr
+
+
+def test_doctor_missing_config_gives_config_repair(tmp_path: Path, capsys) -> None:
+    assert main(["doctor", "--config", str(tmp_path / "missing.yaml")]) == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["checks"]["config_exists"] is False
+    assert "--config" in payload["repair"]
+    assert "installation only" in payload["scope"]

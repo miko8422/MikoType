@@ -1,4 +1,5 @@
 from dataclasses import replace
+import errno
 import json
 from pathlib import Path
 
@@ -82,11 +83,39 @@ def test_endpoint_holds_listener_until_closed(monkeypatch: pytest.MonkeyPatch) -
     assert listener.closed is True
 
 
+def test_windows_listener_reserves_exclusively_before_listening(monkeypatch) -> None:
+    events: list[tuple] = []
+
+    class WindowsSocket(FakeListener):
+        def setsockopt(self, level, option, value):
+            events.append(("setsockopt", level, option, value))
+
+        def bind(self, address):
+            events.append(("bind", address))
+
+        def listen(self, backlog):
+            events.append(("listen", backlog))
+
+    listener = WindowsSocket()
+    monkeypatch.setattr(binding.socket, "SO_EXCLUSIVEADDRUSE", 12345, raising=False)
+    monkeypatch.setattr(binding.socket, "socket", lambda *args: listener)
+    with reserve_loopback_endpoint("localhost", 9000) as endpoint:
+        assert endpoint.listener is listener
+        assert endpoint.host == "127.0.0.1"
+        assert not listener.closed
+    assert events == [
+        ("setsockopt", binding.socket.SOL_SOCKET, 12345, 1),
+        ("bind", ("127.0.0.1", 9000)),
+        ("listen", 2048),
+    ]
+    assert listener.closed
+
+
 def test_strict_occupied_port_fails_with_actionable_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def occupied(host: str, port: int):
-        raise OSError("address already in use")
+        raise OSError(errno.EADDRINUSE, "address already in use")
 
     monkeypatch.setattr(binding, "_listener", occupied)
 
@@ -94,16 +123,18 @@ def test_strict_occupied_port_fails_with_actionable_error(
         reserve_loopback_endpoint("127.0.0.1", 8765)
 
 
-def test_auto_port_selects_next_available_port(
+@pytest.mark.parametrize("available_port", [9000, 9002, 9578, 10000])
+def test_auto_port_selects_available_port_across_entire_range(
     monkeypatch: pytest.MonkeyPatch,
+    available_port: int,
 ) -> None:
     attempted: list[int] = []
     listener = FakeListener()
 
     def select(host: str, port: int):
         attempted.append(port)
-        if port < 8767:
-            raise OSError("address already in use")
+        if port < available_port:
+            raise OSError(errno.EADDRINUSE, "address already in use")
         return listener
 
     monkeypatch.setattr(binding, "_listener", select)
@@ -112,21 +143,92 @@ def test_auto_port_selects_next_available_port(
         "127.0.0.1",
         8765,
         allow_fallback=True,
-        scan_count=3,
     ) as endpoint:
-        assert endpoint.port == 8767
+        assert endpoint.port == available_port
         assert endpoint.auto_selected is True
         assert endpoint.configured_port == 8765
 
-    assert attempted == [8765, 8766, 8767]
+    assert attempted == list(range(9000, available_port + 1))
     assert listener.closed is True
 
 
-def test_endpoint_rejects_non_loopback_and_invalid_scan() -> None:
+def test_endpoint_rejects_non_loopback_and_invalid_port() -> None:
     with pytest.raises(ValueError, match="loopback"):
         reserve_loopback_endpoint("0.0.0.0", 8765)
-    with pytest.raises(ValueError, match="positive"):
-        reserve_loopback_endpoint("127.0.0.1", 8765, scan_count=0)
+    with pytest.raises(ValueError, match="between"):
+        reserve_loopback_endpoint("127.0.0.1", 65536)
+
+
+def test_auto_selection_wraps_below_high_preferred_port(monkeypatch) -> None:
+    attempted: list[int] = []
+
+    def select(host, port):
+        attempted.append(port)
+        if port != 9000:
+            raise OSError(errno.EADDRINUSE, "occupied")
+        return FakeListener()
+
+    monkeypatch.setattr(binding, "_listener", select)
+    with reserve_loopback_endpoint("127.0.0.1", 9999, allow_fallback=True) as endpoint:
+        assert endpoint.port == 9000
+    assert attempted == [9999, 9000]
+
+
+def test_exhausted_range_fails_without_leaving_range(monkeypatch) -> None:
+    attempted: list[int] = []
+
+    def occupied(host, port):
+        attempted.append(port)
+        # Windows excluded ports produce access denied instead of address in use.
+        raise OSError(errno.EACCES, "port excluded")
+
+    monkeypatch.setattr(binding, "_listener", occupied)
+    with pytest.raises(ServicePortInUseError, match="1001 ports in 9000-10000"):
+        reserve_loopback_endpoint("127.0.0.1", 8765, allow_fallback=True)
+    assert attempted == list(range(9000, 10001))
+
+
+def test_unexpected_socket_error_is_not_misreported_as_port_conflict(monkeypatch) -> None:
+    def unavailable(host, port):
+        raise OSError(errno.EMFILE, "socket handles exhausted")
+
+    monkeypatch.setattr(binding, "_listener", unavailable)
+    with pytest.raises(OSError, match="socket handles exhausted"):
+        reserve_loopback_endpoint("127.0.0.1", 9000, allow_fallback=True)
+
+
+def test_discovery_probes_only_occupied_ports_and_closes_bind_checks(monkeypatch) -> None:
+    listeners: list[FakeListener] = []
+    probes: list[int] = []
+
+    def bind(host, port):
+        if port in (9002, 9700):
+            raise OSError(errno.EADDRINUSE, "occupied")
+        listener = FakeListener()
+        listeners.append(listener)
+        return listener
+
+    def probe(host, port, *, timeout_s):
+        probes.append(port)
+        assert timeout_s == 0.15
+        return {"service": "MikoType"} if port == 9700 else None
+
+    monkeypatch.setattr(binding, "_bound_socket", bind)
+    monkeypatch.setattr(binding, "probe_mikotype_service", probe)
+    assert binding.discover_mikotype_services("127.0.0.1", range(9000, 10001)) == {
+        9700: {"service": "MikoType"}
+    }
+    assert sorted(probes) == [9002, 9700]
+    assert len(listeners) == 999
+    assert all(listener.closed for listener in listeners)
+
+
+def test_discovery_with_free_ports_makes_no_http_requests(monkeypatch) -> None:
+    monkeypatch.setattr(binding, "_bound_socket", lambda host, port: FakeListener())
+    monkeypatch.setattr(
+        binding, "probe_mikotype_service", lambda *a, **k: pytest.fail("free port probed")
+    )
+    assert binding.discover_mikotype_services("127.0.0.1", range(9000, 10001)) == {}
 
 
 def test_service_probe_uses_exact_direct_loopback_connection_and_ignores_proxy_env(

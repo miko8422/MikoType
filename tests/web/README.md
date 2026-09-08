@@ -6,8 +6,12 @@ WebSocket bytes come from the exact processed frame paired with SceneState,
 stale data fails closed, and a running process keeps immutable
 Layout/GLB/Manifest snapshots across setup publication. They also cover
 allowlisted local settings, protected fields, atomic override/reset behavior,
-service self-description, and strict versus explicitly automatic port choice
-without binding a real test port. Host/origin isolation tests cover HTTP
+service self-description, default automatic selection across 9000–10000,
+legacy-port migration, reserved/excluded Windows ports, and explicit strict
+selection. Unit tests inject listeners; `test_binding_integration.py` uses
+OS-assigned loopback ports to verify real socket ownership and service identity
+with an inherited proxy. It never opens a camera or reconfigures another process.
+Host/origin isolation tests cover HTTP
 mutations, DNS rebinding attempts, and browser WebSocket access to camera
 bundles.
 

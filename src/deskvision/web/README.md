@@ -4,7 +4,9 @@ The production runtime exposes one local FastAPI control plane on one loopback
 port. Its three browser pages have different authority but share the same
 camera, perception worker, exact-frame stores, and immutable live artifacts.
 
-`deskvision run` serves a read-only inspector at `/`. The browser receives one
+From the repository root, `python .\run_mikotype.py run` serves a read-only
+inspector at `/` (prefix with `uv run --locked` when using uv). The launcher
+verifies that it loaded this checkout's production source. The browser receives one
 single-slot `FramePacket + SceneState` bundle over `/ws/bundle`: metadata/state
 first, then the JPEG made from that exact processed frame. It commits the image,
 fingertip overlay, and key highlights only after source ID, frame ID, timestamp,
@@ -42,14 +44,17 @@ The reserved experimental remote-inference contract is intentionally not
 mounted here. This inspector has no network authentication and must never be
 exposed as a cross-device camera service.
 
-The configured port is preferred rather than forcibly claimed. By default,
-`run` and `setup` probe and reserve up to 20 consecutive loopback ports starting
-there (8765 through 8784 with the default configuration). A matching MikoType
-config revision and Setup workspace anywhere in that range is reused instead
-of opening a second camera runtime; otherwise the first free candidate is
-reserved before camera startup. If the whole range is unavailable, startup
-fails without opening the camera. `--strict-port` disables fallback when an
-integration genuinely requires the preferred port.
+Automatic `run` and `setup` selection covers **9000–10000 inclusive**. A preferred
+port within the range is tried first, followed by all remaining candidates
+from 9000 upward. A legacy config or local-override value outside that range,
+including 8765, starts selection at 9000 without rewriting the saved value.
+A matching MikoType config revision and Setup workspace in the range is reused
+instead of opening a second camera runtime. Otherwise, the first available
+candidate is exclusively reserved before camera startup; the same listener is
+passed to Uvicorn to avoid releasing and rebinding it. Occupied or Windows-reserved
+ports are skipped; an unavailable whole range fails before hardware starts.
+`--strict-port` honors the explicit/configured port, even outside 9000–10000,
+and disables fallback.
 
 No occupied-port owner is terminated or reconfigured. Pimax software and all
 other local services remain running while MikoType continues the scan. Service
@@ -64,3 +69,16 @@ integration must either perform the same bounded loopback discovery and verify
 each candidate's identity through `/api/service`, or opt into `--strict-port`
 and fail closed. `/api/service` verifies a known candidate; it does not reveal
 an otherwise unknown port by itself.
+
+The former `MikoType running at ...:8765` message preceded binding and could be
+followed by `WinError 10048`. It is absent from this revision. Repeated logs
+with identical timestamps/PIDs do not show that a new checkout was executed;
+verify a fresh launch's version and source path with
+`python .\run_mikotype.py --version` and `doctor --config configs\windows.yaml`.
+Version 0.1.0.dev2 includes the new launcher and port policy. `doctor` diagnoses
+installation/config-file state only; Windows hardware and SteamVR acceptance
+are still separate tasks.
+
+This console imports only production modules. Discussed experiments remain in
+`demo/`; retired scaffolding and obsolete copies are recoverable in `dispose/`
+and are excluded from production runtime imports.

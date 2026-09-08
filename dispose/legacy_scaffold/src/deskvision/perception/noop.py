@@ -1,4 +1,4 @@
-"""Explicit empty perception implementation for V0.1."""
+"""Archived empty perception scaffold; not part of the production package."""
 
 from deskvision.core.models import FramePacket
 from deskvision.perception.base import PerceptionObservation

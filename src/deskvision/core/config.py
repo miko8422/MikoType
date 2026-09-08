@@ -26,7 +26,7 @@ class DeploymentConfig:
 @dataclass(frozen=True, slots=True)
 class AppConfig:
     host: str = "127.0.0.1"
-    port: int = 8765
+    port: int = 9000
     log_level: str = "INFO"
 
     def __post_init__(self) -> None:

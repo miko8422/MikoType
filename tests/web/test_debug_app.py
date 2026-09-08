@@ -19,7 +19,7 @@ from deskvision.web.app import DebugWebContext, create_debug_app
 
 
 pytestmark = pytest.mark.unit
-BASE_URL = "http://127.0.0.1:8765"
+BASE_URL = "http://127.0.0.1:9000"
 
 
 def _context(tmp_path: Path) -> DebugWebContext:
@@ -109,7 +109,7 @@ def test_bundle_websocket_pairs_metadata_and_exact_jpeg(tmp_path: Path) -> None:
 
     with client.websocket_connect(
         "/ws/bundle",
-        headers={"Host": "127.0.0.1:8765"},
+        headers={"Host": "127.0.0.1:9000"},
     ) as websocket:
         metadata = websocket.receive_json()
         jpeg = websocket.receive_bytes()
@@ -139,7 +139,7 @@ def test_bundle_websocket_marks_unchanged_bundle_stale(tmp_path: Path) -> None:
 
     with client.websocket_connect(
         "/ws/bundle",
-        headers={"Host": "127.0.0.1:8765"},
+        headers={"Host": "127.0.0.1:9000"},
     ) as websocket:
         assert websocket.receive_json()["type"] == "frame_state_bundle"
         websocket.receive_bytes()
@@ -213,7 +213,7 @@ def test_control_plane_rejects_dns_rebinding_host(tmp_path: Path) -> None:
 
     response = client.get(
         "/api/service",
-        headers={"Host": "untrusted.example:8765"},
+        headers={"Host": "untrusted.example:9000"},
     )
 
     assert response.status_code == 403
@@ -249,7 +249,7 @@ def test_bundle_websocket_rejects_cross_origin_browser(tmp_path: Path) -> None:
         with client.websocket_connect(
             "/ws/bundle",
             headers={
-                "Host": "127.0.0.1:8765",
+                "Host": "127.0.0.1:9000",
                 "Origin": "https://untrusted.example",
             },
         ):

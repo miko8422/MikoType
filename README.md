@@ -15,9 +15,10 @@ consumer.
 > hardware acceptance and the live SteamVR consumer are still incomplete.
 
 The Python distribution and legacy CLI retain the names `vr-desk-vision` and
-`deskvision` for compatibility. The uv instructions use the `mikotype` CLI;
-the Conda instructions use the equivalent module entry point so they do not
-depend on finding the `mikotype` console script on `PATH`.
+`deskvision` for compatibility. For source checkouts, both uv and Conda use
+[`run_mikotype.py`](run_mikotype.py). This launcher loads and verifies `src/`
+from its own repository, even if an older `mikotype` command or editable install
+exists elsewhere. It uses the active Python environment for dependencies.
 
 ## What is implemented
 
@@ -79,8 +80,8 @@ cd MikoType
 
 uv sync --locked --python 3.12 --extra test
 
-uv run --locked mikotype check --config configs\windows.yaml
-uv run --locked mikotype run `
+uv run --locked python .\run_mikotype.py check --config configs\windows.yaml
+uv run --locked python .\run_mikotype.py run `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
@@ -103,52 +104,61 @@ conda create --name mikotype --override-channels --channel conda-forge `
 conda activate mikotype
 python -m pip install -e ".[test]"
 
-python -m deskvision.main check --config configs\windows.yaml
-python -m deskvision.main run `
+python .\run_mikotype.py check --config configs\windows.yaml
+python .\run_mikotype.py run `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
 
-The Conda path uses the module entry point so it does not depend on finding the
-generated `mikotype` console script on `PATH`. If this checkout was installed
-in editable mode before that script was added, diagnose the active interpreter,
-loaded version, and import path from the repository root:
+For an existing Conda installation, update from the repository root and verify
+the interpreter before reinstalling. `sys.executable` should point into the
+`mikotype` Conda environment. If it does not, reopen the Conda PowerShell Prompt
+and activate that environment first:
 
 ```powershell
 git pull --ff-only
 conda activate mikotype
 python -c "import sys; print(sys.executable)"
-python -c "import deskvision; print(deskvision.__file__)"
-python -m pip --version
-python -m pip show vr-desk-vision
-python -m deskvision.main --version
-python -m deskvision.main doctor --config configs\windows.yaml
-Get-Command mikotype -All -ErrorAction SilentlyContinue
+python -m pip install -e ".[test]"
+python .\run_mikotype.py --version
+python .\run_mikotype.py doctor --config configs\windows.yaml
+python .\run_mikotype.py run `
+  --config configs\windows.yaml `
+  --acknowledge-mediapipe-metrics
 ```
 
-For this revision, `--version` must report `MikoType 0.1.0.dev1` and `doctor`
-must report `"status": "ready"`. `sys.executable` should point into the
-`mikotype` Conda environment. If it does not, do not reinstall with that Python:
-reopen a Conda PowerShell Prompt (or a PowerShell initialized by Conda), run
-`conda activate mikotype`, and repeat the diagnostics. Only when the interpreter
-is correct but `deskvision.__file__`, the version, or `doctor` still identifies
-an old checkout should you repair the editable project link and check again:
+For this revision, `--version` reports `MikoType 0.1.0.dev2` and the source path
+inside this checkout. `doctor` reports installation/config-file diagnostics;
+`"status": "ready"` is not Windows camera, network, or SteamVR acceptance. The
+launcher also sets its working directory to the repository root, so relative
+CLI paths are interpreted from there. To inspect an old bare command separately:
 
 ```powershell
-python -m pip install --force-reinstall --no-deps -e .
+Get-Command mikotype -All -ErrorAction SilentlyContinue
+python -m pip show vr-desk-vision
+python -c "import deskvision; print(deskvision.__file__)"
 ```
+
+`WinError 10048` means another process already owns the requested socket. If
+8765 displays **Pimax Client**, the browser has reached that application's
+server. The old log line `MikoType running at http://127.0.0.1:8765` was printed
+before the old server bound its port; it did not prove startup succeeded. A
+copied log with the same timestamps and PID cannot establish that an updated
+checkout has been run. Use a fresh source-launcher invocation and compare its
+version, source path, and `OPEN THIS EXACT URL` output. This separates an old
+installation from a new bind failure without guessing which environment ran.
 
 Do not combine the uv and Conda environments. Commands below show the uv form.
 Inside the activated Conda environment, do not invoke uv: replace
-`uv run --locked mikotype <subcommand>` with
-`python -m deskvision.main <subcommand>`, keep only `python -m ...` from commands
+`uv run --locked python .\run_mikotype.py <subcommand>` with
+`python .\run_mikotype.py <subcommand>`, keep only `python -m ...` from commands
 that start that way after the uv prefix, and replace test commands such as
 `uv run --locked --extra test pytest -q` with `python -m pytest -q`. Conda
 provides the same isolation, but only the recommended uv path consumes the
 exact cross-platform dependency lock.
 
 When the runtime is ready, the terminal prints `OPEN THIS EXACT URL: ...`.
-Open only that URL rather than assuming that port 8765 was selected. One process
+Open that actual URL; the default automatic range is 9000–10000. One process
 and one camera then host the complete local control console:
 
 - `/` shows the exact-frame video, hand/keyboard state, quality metrics, and
@@ -163,13 +173,15 @@ WebUI settings are written atomically to the gitignored
 `configs/windows.local.yaml`. They are loaded automatically on the next start;
 the live camera and inference objects are never partially hot-swapped.
 
-The configured port is a preferred port, not a fixed claim. By default,
-`run` and `setup` scan up to 20 consecutive loopback ports starting there (with
-the default configuration, 8765 through 8784). They reuse a matching MikoType
-instance for the same configuration and Setup workspace; otherwise they reserve
-the first free candidate before opening the camera. If the range contains
-neither a matching instance nor a free port, startup fails without opening the
-camera.
+By default, `run` and `setup` select within **9000–10000 inclusive**. A preferred
+port inside that range is tried first, followed by the remaining ports from
+9000 upward. Old configuration or local-override values such as 8765 are skipped
+in automatic mode: selection starts at 9000 without rewriting the saved value.
+A matching MikoType instance for the same configuration and Setup workspace
+is reused; otherwise the first available candidate is exclusively reserved
+before the camera opens, and that same socket is passed to the web server.
+Occupied or Windows-reserved ports are skipped. If the whole range is
+unavailable, startup fails before opening the camera.
 
 MikoType never terminates or reconfigures the process that owns an occupied
 port. Pimax software and every other local service are left running and the scan
@@ -181,15 +193,16 @@ Always open the address printed after `OPEN THIS EXACT URL:`. To require the
 preferred port instead of allowing the default scan, opt into strict mode:
 
 ```powershell
-uv run --locked mikotype run `
+uv run --locked python .\run_mikotype.py run `
   --config configs\windows.yaml `
+  --port 9500 `
   --strict-port `
   --acknowledge-mediapipe-metrics
 ```
 
-Strict mode fails before camera startup if the preferred port belongs to an
-unrelated or incompatible process. The service does not yet start a live
-SteamVR consumer.
+Strict mode honors the explicit/configured port, including a port outside
+9000–10000, and fails before camera startup if it is unavailable or belongs to
+an incompatible process. The service does not yet start a live SteamVR consumer.
 
 The default camera backend is `msmf`. If that camera cannot open reliably, use
 the Settings page to try `dshow`, then `any`. Change the device index if OpenCV
@@ -199,13 +212,13 @@ that every camera driver accepted those values.
 ## Keyboard setup on Windows
 
 With the main `run` command active, open its Setup page from the control console
-at the exact URL printed by the terminal; do not assume port 8765 or start a
+at the exact URL printed by the terminal; do not assume a fixed port or start a
 second service. The compatibility command below starts the same integrated
 control plane when no matching MikoType instance is running, or prints the
 exact existing Setup URL when one is already present:
 
 ```powershell
-uv run --locked mikotype setup `
+uv run --locked python .\run_mikotype.py setup `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
@@ -312,13 +325,20 @@ The same-host Windows consumer can use:
 
 ```text
 src/deskvision/     Windows-targeted production vision/mapping runtime
+run_mikotype.py     repository-anchored source launcher
 configs/            canonical Windows V0.1 configuration
 data/keyboards/     calibrated sample and adaptive GLB
 contracts/          SceneState and experimental remote wire contracts
 tests/              isolated automated tests
 demo/               experiments; never imported by production
+dispose/            recoverable retired content; excluded from runtime
 windows_vr/         same-host Windows VR integration boundary
 ```
+
+Previously discussed experimental features remain isolated in `demo/`.
+`dispose/` holds retired scaffolding and obsolete copies for review or recovery;
+it is not a second implementation or a production import path. See its README
+for the retained items and original locations.
 
 ## Validation
 

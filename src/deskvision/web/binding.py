@@ -3,20 +3,23 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from concurrent.futures import ThreadPoolExecutor
+import errno
 import hashlib
 from http.client import HTTPConnection, HTTPException
 import json
 import os
 from pathlib import Path
 import socket
-from typing import Any, Mapping
+from typing import Any, Iterable, Mapping
 
 from deskvision.core.config import DeskVisionConfig
 from deskvision.core.platform import is_loopback_host
 
 
 SERVICE_SCHEMA_VERSION = "mikotype-service-0.2"
-DEFAULT_PORT_SCAN_COUNT = 20
+AUTO_PORT_START = 9000
+AUTO_PORT_END = 10000
 REQUIRED_CONTROL_CAPABILITIES = frozenset(
     {"runtime_inspector", "runtime_settings", "keyboard_setup"}
 )
@@ -130,7 +133,27 @@ class BoundEndpoint:
         self.close()
 
 
-def _listener(host: str, port: int) -> socket.socket:
+def candidate_ports(preferred_port: int, *, allow_fallback: bool) -> tuple[int, ...]:
+    """Keep automatic startup inside the full inclusive Windows service range."""
+
+    if not 1 <= preferred_port <= 65535:
+        raise ValueError("service port must be between 1 and 65535")
+    if not allow_fallback:
+        return (preferred_port,)
+    ports = tuple(range(AUTO_PORT_START, AUTO_PORT_END + 1))
+    if preferred_port in ports:
+        return (preferred_port,) + tuple(port for port in ports if port != preferred_port)
+    # Old local overrides (notably 8765/Pimax) must not defeat automatic startup.
+    return ports
+
+
+def _port_unavailable(exc: OSError) -> bool:
+    return exc.errno in {errno.EADDRINUSE, errno.EACCES} or getattr(
+        exc, "winerror", None
+    ) in {10048, 10013}
+
+
+def _bound_socket(host: str, port: int) -> socket.socket:
     bind_host = canonical_loopback_host(host)
     family = socket.AF_INET6 if ":" in bind_host else socket.AF_INET
     listener = socket.socket(family, socket.SOCK_STREAM)
@@ -139,6 +162,15 @@ def _listener(host: str, port: int) -> socket.socket:
         if exclusive is not None:
             listener.setsockopt(socket.SOL_SOCKET, exclusive, 1)
         listener.bind((bind_host, port))
+        return listener
+    except BaseException:
+        listener.close()
+        raise
+
+
+def _listener(host: str, port: int) -> socket.socket:
+    listener = _bound_socket(host, port)
+    try:
         listener.listen(2048)
         return listener
     except BaseException:
@@ -151,23 +183,19 @@ def reserve_loopback_endpoint(
     preferred_port: int,
     *,
     allow_fallback: bool = False,
-    scan_count: int = DEFAULT_PORT_SCAN_COUNT,
 ) -> BoundEndpoint:
     """Reserve a listener before camera startup and hand it to Uvicorn."""
 
     if not is_loopback_host(host):
         raise ValueError("MikoType may reserve only a loopback host")
-    if not 1 <= preferred_port <= 65535:
-        raise ValueError("service port must be between 1 and 65535")
-    if scan_count <= 0:
-        raise ValueError("port scan_count must be positive")
-
-    limit = scan_count if allow_fallback else 1
+    ports = candidate_ports(preferred_port, allow_fallback=allow_fallback)
     last_error: OSError | None = None
-    for port in range(preferred_port, min(65535, preferred_port + limit - 1) + 1):
+    for port in ports:
         try:
             listener = _listener(host, port)
         except OSError as exc:
+            if not _port_unavailable(exc):
+                raise
             last_error = exc
             continue
         return BoundEndpoint(
@@ -179,8 +207,10 @@ def reserve_loopback_endpoint(
         )
 
     if allow_fallback:
-        attempted_end = min(65535, preferred_port + limit - 1)
-        detail = f"ports {preferred_port}-{attempted_end} are unavailable"
+        detail = (
+            f"all {len(ports)} ports in {AUTO_PORT_START}-{AUTO_PORT_END} "
+            "are occupied or unavailable; no other process was stopped"
+        )
     else:
         detail = (
             f"port {preferred_port} is unavailable and --strict-port disabled "
@@ -189,6 +219,43 @@ def reserve_loopback_endpoint(
     if last_error is not None:
         detail += f" ({last_error})"
     raise ServicePortInUseError(detail)
+
+
+def discover_mikotype_services(
+    host: str,
+    ports: Iterable[int],
+) -> dict[int, Mapping[str, Any]]:
+    """Probe only occupied sockets, with at most 32 simultaneous HTTP requests.
+
+    Checking whether a loopback socket can bind is immediate, even on Windows.
+    Free ports never incur connect timeouts. Temporary checks are closed before
+    the final listener is reserved; the final exclusive bind decides ownership.
+    """
+
+    if not is_loopback_host(host):
+        raise ValueError("MikoType may discover only a loopback host")
+    occupied: list[int] = []
+    for port in ports:
+        try:
+            temporary = _bound_socket(host, port)
+        except OSError as exc:
+            if not _port_unavailable(exc):
+                raise
+            occupied.append(port)
+        else:
+            temporary.close()
+    if not occupied:
+        return {}
+
+    def probe(port: int):
+        return probe_mikotype_service(host, port, timeout_s=0.15)
+
+    with ThreadPoolExecutor(max_workers=min(32, len(occupied))) as executor:
+        return {
+            port: payload
+            for port, payload in zip(occupied, executor.map(probe, occupied))
+            if payload is not None
+        }
 
 
 def probe_mikotype_service(
@@ -242,12 +309,15 @@ def probe_mikotype_service(
 
 __all__ = [
     "BoundEndpoint",
-    "DEFAULT_PORT_SCAN_COUNT",
+    "AUTO_PORT_START",
+    "AUTO_PORT_END",
     "REQUIRED_CONTROL_CAPABILITIES",
     "SERVICE_SCHEMA_VERSION",
     "ServicePortInUseError",
     "canonical_loopback_host",
+    "candidate_ports",
     "configuration_revision",
+    "discover_mikotype_services",
     "loopback_url",
     "probe_mikotype_service",
     "reserve_loopback_endpoint",

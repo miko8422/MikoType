@@ -1,4 +1,4 @@
-"""Metric names shared across capture, API, and SceneState diagnostics."""
+"""Archived unused metric-name constants; not part of the production package."""
 
 CAPTURE_FPS = "capture_fps"
 FRAME_AGE_MS = "frame_age_ms"

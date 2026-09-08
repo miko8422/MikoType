@@ -43,7 +43,7 @@ class DebugWebContext:
     model_path: Path
     manifest_path: Path
     service_host: str = "127.0.0.1"
-    service_port: int = 8765
+    service_port: int = 9000
     mirror_preview: bool = True
     max_preview_fps: int = 30
     expose_model_download: bool = True

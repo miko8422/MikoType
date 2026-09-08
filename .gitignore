@@ -19,6 +19,7 @@ demo/steamvr_home_hybrid/output/
 demo/steamvr_home_hybrid/packaging/.build/
 dist/
 build/
+dispose/local_artifacts/
 *.egg-info/
 .DS_Store
 :memory:.ses

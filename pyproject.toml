@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vr-desk-vision"
-version = "0.1.0.dev1"
+version = "0.1.0.dev2"
 description = "Windows-local physical-keyboard vision and SteamVR data pipeline"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -30,6 +30,7 @@ mikotype = "deskvision.main:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+include = ["deskvision", "deskvision.*"]
 
 [tool.setuptools.package-data]
 deskvision = [

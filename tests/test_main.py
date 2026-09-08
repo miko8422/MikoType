@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -20,6 +21,11 @@ from deskvision.web.binding import (
 
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def isolate_service_discovery(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("deskvision.main.discover_mikotype_services", lambda *args: {})
 
 
 def test_check_rejects_configuration_that_v01_runtime_cannot_start(
@@ -53,7 +59,7 @@ def test_run_reuses_existing_mikotype_instead_of_starting_second_camera(
         lambda host, port: {
             "schema_version": SERVICE_SCHEMA_VERSION,
             "service": "MikoType",
-            "url": "http://127.0.0.1:8765",
+            "url": "http://127.0.0.1:9000",
             "capabilities": sorted(REQUIRED_CONTROL_CAPABILITIES),
             "config_path": str(config_path),
             "setup_workspace_path": str(workspace_path),
@@ -65,8 +71,8 @@ def test_run_reuses_existing_mikotype_instead_of_starting_second_camera(
         lambda config: pytest.fail("existing service must prevent camera startup"),
     )
 
-    assert main(["setup"]) == 0
-    assert "http://127.0.0.1:8765/setup" in capsys.readouterr().out
+    assert main(["setup", "--strict-port"]) == 0
+    assert "http://127.0.0.1:9000/setup" in capsys.readouterr().out
 
 
 def test_run_refuses_to_reuse_mikotype_with_a_different_workspace(
@@ -82,7 +88,7 @@ def test_run_refuses_to_reuse_mikotype_with_a_different_workspace(
         lambda host, port: {
             "schema_version": SERVICE_SCHEMA_VERSION,
             "service": "MikoType",
-            "url": "http://127.0.0.1:8765",
+            "url": "http://127.0.0.1:9000",
             "capabilities": sorted(REQUIRED_CONTROL_CAPABILITIES),
             "config_path": str(config_path),
             "setup_workspace_path": str(tmp_path / "other-workspace"),
@@ -111,22 +117,20 @@ def test_default_auto_port_reuses_matching_fallback_service(
     config = load_config(config_path)
     probes: list[int] = []
 
-    def probe(host: str, port: int):
-        probes.append(port)
-        if port != 8766:
-            return None
-        return {
+    def discover(host: str, ports):
+        probes.extend(ports)
+        return {9700: {
             "schema_version": SERVICE_SCHEMA_VERSION,
             "service": "MikoType",
-            "url": "http://127.0.0.1:8766",
+            "url": "http://127.0.0.1:9700",
             "capabilities": sorted(REQUIRED_CONTROL_CAPABILITIES),
             "config_path": str(config_path),
             "setup_workspace_path": str(workspace_path),
             "config_revision": configuration_revision(config),
-        }
+        }}
 
     monkeypatch.setattr("deskvision.main.require_windows_runtime", lambda: None)
-    monkeypatch.setattr("deskvision.main.probe_mikotype_service", probe)
+    monkeypatch.setattr("deskvision.main.discover_mikotype_services", discover)
     monkeypatch.setattr(
         "deskvision.main.reserve_loopback_endpoint",
         lambda *args, **kwargs: pytest.fail(
@@ -139,10 +143,10 @@ def test_default_auto_port_reuses_matching_fallback_service(
     )
 
     assert main(["run"]) == 0
-    assert probes == [8765, 8766]
+    assert probes == list(range(9000, 10001))
     output = capsys.readouterr().out
     assert "discovered fallback port" in output
-    assert "OPEN THIS EXACT URL: http://127.0.0.1:8766/" in output
+    assert "OPEN THIS EXACT URL: http://127.0.0.1:9700/" in output
 
 
 def test_port_conflict_fails_before_runtime_build(
@@ -183,11 +187,11 @@ def test_control_plane_construction_failure_closes_built_runtime(
 
     class Endpoint:
         host = "127.0.0.1"
-        port = 8765
-        configured_port = 8765
+        port = 9000
+        configured_port = 9000
         auto_selected = False
         listener = object()
-        url = "http://127.0.0.1:8765"
+        url = "http://127.0.0.1:9000"
 
         def __enter__(self):
             return self
@@ -223,10 +227,12 @@ def test_control_plane_construction_failure_closes_built_runtime(
     assert events == ["runtime_stopped", "port_closed"]
 
 
-def test_default_auto_port_avoids_preferred_port_and_prints_actual_url(
+@pytest.mark.parametrize("startup_success", [True, False])
+def test_default_auto_port_reports_ready_only_after_successful_server_startup(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    startup_success: bool,
 ) -> None:
     repository = Path(__file__).resolve().parents[1]
     source_config = repository / "configs" / "windows.yaml"
@@ -235,11 +241,11 @@ def test_default_auto_port_avoids_preferred_port_and_prints_actual_url(
 
     class Endpoint:
         host = "127.0.0.1"
-        port = 8766
-        configured_port = 8765
+        port = 9578
+        configured_port = 9000
         auto_selected = True
         listener = object()
-        url = "http://127.0.0.1:8766"
+        url = "http://127.0.0.1:9578"
 
         def __enter__(self):
             events.append("port_reserved")
@@ -270,7 +276,7 @@ def test_default_auto_port_avoids_preferred_port_and_prints_actual_url(
 
     def build(runtime_config):
         events.append("runtime_built")
-        assert runtime_config.app.port == 8766
+        assert runtime_config.app.port == 9578
         runtime = Runtime(runtime_config)
         runtime_holder["runtime"] = runtime
         return runtime
@@ -278,6 +284,14 @@ def test_default_auto_port_avoids_preferred_port_and_prints_actual_url(
     class Server:
         def __init__(self, server_config) -> None:
             self.server_config = server_config
+            self.started = False
+
+        async def startup(self, sockets=None) -> None:
+            assert "MIKOTYPE READY" not in capsys.readouterr().out
+            if not startup_success:
+                raise SystemExit(3)
+            events.append("server_started")
+            self.started = True
 
         def run(self, *, sockets) -> None:
             events.append("server_ran")
@@ -285,13 +299,14 @@ def test_default_auto_port_avoids_preferred_port_and_prints_actual_url(
             assert self.server_config.workers == 1
             client = TestClient(
                 runtime_holder["runtime"].web_app,
-                base_url="http://127.0.0.1:8766",
+                base_url="http://127.0.0.1:9578",
             )
             assert client.get("/").status_code == 200
             assert client.get("/settings").status_code == 200
             assert client.get("/setup").status_code == 200
-            assert client.get("/api/service").json()["port"] == 8766
+            assert client.get("/api/service").json()["port"] == 9578
             assert client.get("/api/setup/layout").status_code == 200
+            asyncio.run(self.startup(sockets=sockets))
 
     monkeypatch.setattr("deskvision.main.require_windows_runtime", lambda: None)
     monkeypatch.setattr("deskvision.main.load_config", lambda path: config)
@@ -300,7 +315,7 @@ def test_default_auto_port_avoids_preferred_port_and_prints_actual_url(
     )
 
     def reserve(host: str, port: int, **kwargs):
-        assert (host, port) == ("127.0.0.1", 8765)
+        assert (host, port) == ("127.0.0.1", 9000)
         assert kwargs["allow_fallback"] is True
         return Endpoint()
 
@@ -318,16 +333,20 @@ def test_default_auto_port_avoids_preferred_port_and_prints_actual_url(
         ]
     )
 
-    assert result == 0
+    assert result == (0 if startup_success else 2)
     assert events == [
         "port_reserved",
         "runtime_built",
         "runtime_started",
         "server_ran",
+        *(["server_started"] if startup_success else []),
         "runtime_stopped",
         "port_closed",
     ]
-    output = capsys.readouterr().out
-    assert "Preferred port 8765 belongs to another local process" in output
-    assert "OPEN THIS EXACT URL: http://127.0.0.1:8766/" in output
-    assert "OPEN THIS EXACT URL: http://127.0.0.1:8765/" not in output
+    captured = capsys.readouterr()
+    if startup_success:
+        assert "OPEN THIS EXACT URL: http://127.0.0.1:9578/" in captured.out
+        assert "OPEN THIS EXACT URL: http://127.0.0.1:9000/" not in captured.out
+    else:
+        assert "OPEN THIS EXACT URL" not in captured.out
+        assert "failed to start (exit 3)" in captured.err

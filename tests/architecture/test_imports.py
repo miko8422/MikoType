@@ -1,4 +1,4 @@
-"""Verify scaffold imports and production/demo/test dependency direction."""
+"""Verify production imports and the production/demo/test/archive boundary."""
 
 import ast
 import importlib
@@ -25,7 +25,6 @@ MODULES = (
     "deskvision.video.jpeg_encoder",
     "deskvision.perception.base",
     "deskvision.perception.pipeline",
-    "deskvision.perception.noop",
     "deskvision.perception.keyboard_base",
     "deskvision.perception.hand_base",
     "deskvision.perception.mediapipe_hands",
@@ -60,16 +59,15 @@ MODULES = (
     "deskvision.web.settings",
     "deskvision.runtime",
     "deskvision.observability.health",
-    "deskvision.observability.metrics",
 )
 
 
 @pytest.mark.parametrize("module_name", MODULES)
-def test_scaffold_module_imports(module_name: str) -> None:
+def test_production_module_imports(module_name: str) -> None:
     importlib.import_module(module_name)
 
 
-def test_production_package_does_not_import_demo_or_tests() -> None:
+def test_production_package_does_not_import_demo_tests_or_dispose() -> None:
     production_root = Path(__file__).parents[2] / "src" / "deskvision"
     violations: list[str] = []
     for source_path in production_root.rglob("*.py"):
@@ -82,7 +80,7 @@ def test_production_package_does_not_import_demo_or_tests() -> None:
             else:
                 continue
             for imported_name in imported_names:
-                if imported_name.split(".", 1)[0] in {"demo", "tests"}:
+                if imported_name.split(".", 1)[0] in {"demo", "tests", "dispose"}:
                     relative_path = source_path.relative_to(production_root.parent)
                     violations.append(f"{relative_path}:{node.lineno} imports {imported_name}")
     assert not violations, "production dependency boundary violated:\n" + "\n".join(violations)

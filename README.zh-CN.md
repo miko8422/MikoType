@@ -11,9 +11,10 @@ MikoType 是一个面向 VR 的实体键盘视觉定位与交互管线。系统�
 > 这是 V0.1 唯一的生产拓扑。视觉与映射核心已经实现，但 Windows 实机验收和
 > SteamVR 实时消费端仍未完成。
 
-Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvision`。uv
-说明使用 `mikotype` 命令；Conda 说明使用等价模块入口，从而不依赖在 `PATH`
-中找到 `mikotype` 命令脚本。
+Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvision`。从源码
+启动时，uv 和 Conda 都使用 [`run_mikotype.py`](run_mikotype.py)。该入口会优先
+加载并校验脚本所在仓库的 `src/`，避免旧 `mikotype` 命令或其他目录的 editable
+安装被误用；依赖仍由当前 Python 环境提供。
 
 ## 已实现功能
 
@@ -71,8 +72,8 @@ cd MikoType
 
 uv sync --locked --python 3.12 --extra test
 
-uv run --locked mikotype check --config configs\windows.yaml
-uv run --locked mikotype run `
+uv run --locked python .\run_mikotype.py check --config configs\windows.yaml
+uv run --locked python .\run_mikotype.py run `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
@@ -95,48 +96,56 @@ conda create --name mikotype --override-channels --channel conda-forge `
 conda activate mikotype
 python -m pip install -e ".[test]"
 
-python -m deskvision.main check --config configs\windows.yaml
-python -m deskvision.main run `
+python .\run_mikotype.py check --config configs\windows.yaml
+python .\run_mikotype.py run `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
 
-Conda 方案使用模块入口，不依赖在 `PATH` 中找到生成的 `mikotype` 命令脚本。
-如果这个检出目录在加入该脚本前就做过 editable 安装，请先从仓库根目录诊断
-当前解释器、加载的版本和导入路径：
+已有 Conda 环境时，从仓库根目录更新并先核对解释器，再重新安装项目。
+`sys.executable` 应指向 `mikotype` Conda 环境；如果不是，先重新打开 Conda
+PowerShell Prompt 并激活正确的环境：
 
 ```powershell
 git pull --ff-only
 conda activate mikotype
 python -c "import sys; print(sys.executable)"
-python -c "import deskvision; print(deskvision.__file__)"
-python -m pip --version
-python -m pip show vr-desk-vision
-python -m deskvision.main --version
-python -m deskvision.main doctor --config configs\windows.yaml
-Get-Command mikotype -All -ErrorAction SilentlyContinue
+python -m pip install -e ".[test]"
+python .\run_mikotype.py --version
+python .\run_mikotype.py doctor --config configs\windows.yaml
+python .\run_mikotype.py run `
+  --config configs\windows.yaml `
+  --acknowledge-mediapipe-metrics
 ```
 
-本次版本中，`--version` 必须显示 `MikoType 0.1.0.dev1`，`doctor` 必须显示
-`"status": "ready"`。`sys.executable` 应指向 `mikotype` Conda 环境；如果不是，
-不要用这个 Python 重装软件包，而应重新打开 Conda PowerShell Prompt（或已由
-Conda 初始化的 PowerShell），执行 `conda activate mikotype` 后再诊断。只有解释器
-正确，但 `deskvision.__file__`、版本或 `doctor` 仍指向旧检出目录时，才修复项目的
-editable 链接并再次检查：
+本次版本的 `--version` 应显示 `MikoType 0.1.0.dev2`，源码路径应位于当前仓库。
+`doctor` 只诊断安装和配置文件；`"status": "ready"` 不代表 Windows 摄像头、
+网络或 SteamVR 已验收。入口还会将工作目录设为仓库根目录，因此命令中的相对
+路径以仓库根目录为准。若要单独核查旧的裸命令来自哪里，可执行：
 
 ```powershell
-python -m pip install --force-reinstall --no-deps -e .
+Get-Command mikotype -All -ErrorAction SilentlyContinue
+python -m pip show vr-desk-vision
+python -c "import deskvision; print(deskvision.__file__)"
 ```
 
+`WinError 10048` 表示请求的套接字已被其他进程占用。若 8765 显示 **Pimax Client**，
+浏览器访问到的是 Pimax 的服务。旧日志中的 `MikoType running at http://127.0.0.1:8765`
+在旧服务真正绑定端口前就会打印，因此不能证明启动成功。再次粘贴时间戳和 PID
+完全相同的日志，也不能证明更新后的源码已经运行。请用源码入口重新启动，核对
+这次输出的版本、源码路径以及 `OPEN THIS EXACT URL`，据此区分旧安装与新的
+端口错误，而不是直接猜测 Windows 使用了哪个环境。
+
 不要混用 uv 和 Conda 环境。后续命令以 uv 写法为准；如果已经激活 Conda
-环境，不要再调用 uv：把 `uv run --locked mikotype <子命令>` 换成
-`python -m deskvision.main <子命令>`；对于 uv 前缀后本来就是 `python -m ...` 的
+环境，不要再调用 uv：把 `uv run --locked python .\run_mikotype.py <子命令>` 换成
+`python .\run_mikotype.py <子命令>`；对于 uv 前缀后本来就是 `python -m ...` 的
 命令，只保留 `python -m ...`；测试命令则把
 `uv run --locked --extra test pytest -q` 换成 `python -m pytest -q`。Conda 同样
 提供环境隔离，但只有推荐的 uv 方案会使用仓库中精确的跨平台依赖锁。
 
 运行时就绪后，终端会打印 `OPEN THIS EXACT URL: ...`。只打开该地址，不要假定
-最终使用的是 8765 端口。随后一个进程和一路摄像头会在同一本地控制台提供：
+最终使用某个固定端口；默认自动选择范围为 9000–10000。随后一个进程和一路
+摄像头会在同一本地控制台提供：
 
 - `/`：严格同帧的视频、手部/键盘状态、质量指标和自适应键盘高亮。
 - `/settings`：校验并保存白名单内的摄像头、预览、MediaPipe、Marker、交互、
@@ -147,11 +156,12 @@ python -m pip install --force-reinstall --no-deps -e .
 WebUI 参数会原子写入 Git 忽略的 `configs/windows.local.yaml`，下次启动时自动
 加载。运行中的摄像头和推理对象不会被局部热替换，界面会明确提示需要重启。
 
-配置中的端口现在是首选端口，而不是必须占用的固定端口。`run` 和 `setup` 默认从
-首选端口起连续扫描最多 20 个回环端口；使用默认配置时范围为 8765 至 8784。如果
-其中已有“相同配置 + 同一 Setup 工作区”的 MikoType，CLI 会复用它；否则会在打开
-摄像头前预留第一个空闲端口。如果范围内既没有匹配实例也没有空闲端口，启动才会
-失败，且不会打开摄像头。
+`run` 和 `setup` 默认在 **9000–10000（包含两端）** 中选择端口。首选端口在范围
+内时先尝试它，再从 9000 起尝试区间内其余端口；旧配置或本地覆盖文件中的 8765
+等区间外值，在自动模式下会跳过并从 9000 开始选择，不会改写已保存的配置值。
+如果发现“相同配置 + 同一 Setup 工作区”的 MikoType，会复用它；否则会在打开
+摄像头前独占预留第一个可用端口，并将同一套接字交给 Web 服务。已占用或被
+Windows 保留的端口会跳过；整个区间都不可用时，启动会在打开摄像头前失败。
 
 MikoType 不会终止或重新配置占用端口的进程。Pimax 软件及其他任何本机服务都会
 保持运行，扫描只会继续尝试下一个端口。身份探测只直接访问回环地址，并仅对这些
@@ -162,14 +172,16 @@ MikoType 不会终止或重新配置占用端口的进程。Pimax 软件及其�
 端口，可显式启用严格模式：
 
 ```powershell
-uv run --locked mikotype run `
+uv run --locked python .\run_mikotype.py run `
   --config configs\windows.yaml `
+  --port 9500 `
   --strict-port `
   --acknowledge-mediapipe-metrics
 ```
 
-严格模式下，如果首选端口属于无关服务或身份不匹配的进程，MikoType 会在打开
-摄像头前失败。目前仍不会启动 SteamVR 实时消费端。
+严格模式会使用显式指定或配置中的端口，包括 9000–10000 以外的端口。如果它
+不可用或属于身份不匹配的进程，MikoType 会在打开摄像头前失败。目前仍不会
+启动 SteamVR 实时消费端。
 
 默认摄像头后端是 `msmf`。如果摄像头无法稳定打开，可在参数设置页依次尝试
 `dshow`、`any`；OpenCV 选错摄像头时修改设备编号。V0.1 会请求分辨率和 FPS，
@@ -178,12 +190,12 @@ uv run --locked mikotype run `
 ## Windows 键盘校准
 
 主 `run` 命令运行时，从终端打印的准确地址进入控制台并打开其中的 Setup 页面；
-不要假定端口为 8765，也不要再启动第二个服务。下面的兼容命令只在没有匹配的
+不要假定使用某个固定端口，也不要再启动第二个服务。下面的兼容命令只在没有匹配的
 MikoType 实例时启动同一个集成控制台；若已经运行，它会打印现有 Setup 的准确
 地址：
 
 ```powershell
-uv run --locked mikotype setup `
+uv run --locked python .\run_mikotype.py setup `
   --config configs\windows.yaml `
   --acknowledge-mediapipe-metrics
 ```
@@ -280,13 +292,18 @@ WebSocket 是无鉴权的本机诊断接口，不能直接暴露为远程视频�
 
 ```text
 src/deskvision/     面向 Windows 的生产视觉与映射运行时
+run_mikotype.py     固定加载当前仓库的源码入口
 configs/            Windows V0.1 标准配置
 data/keyboards/     校准示例和自适应 GLB
 contracts/          SceneState 和实验性远端传输契约
 tests/              隔离的自动化测试
 demo/               实验代码，生产环境不会导入
+dispose/            可恢复的退役内容，不进入运行时
 windows_vr/         同机 Windows VR 集成边界
 ```
+
+此前讨论过的实验功能继续隔离在 `demo/`。`dispose/` 存放退役框架和过期副本，
+用于复查或恢复，不作为另一套实现或生产导入路径；保留内容和原位置见其 README。
 
 ## 测试
 

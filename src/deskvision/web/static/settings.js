@@ -69,7 +69,7 @@ function renderService(payload) {
       ? `${actualPort} (配置 ${configuredPort})`
       : actualPort,
   );
-  setText("auto-port", payload.auto_selected ? "端口占用，已自动选择" : "使用配置端口");
+  setText("auto-port", payload.auto_selected ? "使用自动选择的端口" : "使用配置端口");
   setText("package-version", payload.package_version);
   setText("python-executable", payload.python_executable);
   setText("runtime-source", payload.runtime_source);
