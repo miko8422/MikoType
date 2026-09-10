@@ -358,6 +358,7 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
                 print("\n=== MIKOTYPE READY ===", flush=True)
                 print(
                     f"OPEN THIS EXACT URL: {destination}\n"
+                    f"SteamVR status and logs: {url}/steamvr\n"
                     f"Adaptive keyboard: {len(runtime.artifacts.layout.keys)} keys\n",
                     flush=True,
                 )

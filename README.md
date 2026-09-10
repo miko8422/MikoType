@@ -33,7 +33,8 @@ exists elsewhere. It uses the active Python environment for dependencies.
 - An adaptive GLB with one `key:<physical_key_id>` node per key.
 - A loopback FastAPI inspector, model endpoints, and `SceneState 0.2`
   WebSockets.
-- A source-only Windows OpenVR Driver/Render Model/Overlay smoke package.
+- A separate Windows OpenVR GenericTracker driver and live Overlay bridge,
+  with a `/steamvr` control/diagnostic page and current-user render-model export.
 
 MikoType reports likely contact candidates. It does not claim a mechanical
 keypress or inject operating-system keyboard input.
@@ -53,8 +54,10 @@ Camera
      + downloadable adaptive 3D keyboard GLB
 
 Separate Windows acceptance module (not started by the vision service):
-  local FastAPI -> SteamVR consumer -> SteamVR Home / HMD
-  (live consumer and spatial alignment are not complete)
+  local FastAPI -> live Windows bridge -> GenericTracker 3D keyboard
+                                      -> plane Overlay highlights + fingertips
+  WebUI /steamvr <- bridge events + explicit SteamVR log collection
+  (manual room-space alignment; Windows/headset acceptance required)
 ```
 
 Every live vision stage uses the same captured frame. Slow downstream work
@@ -199,7 +202,7 @@ python .\run_mikotype.py run `
   --acknowledge-mediapipe-metrics
 ```
 
-For this revision, `--version` reports `MikoType 0.1.0.dev3` and the source path
+For this revision, `--version` reports `MikoType 0.1.0.dev4` and the source path
 inside this checkout. `doctor` reports installation/config-file diagnostics;
 `"status": "ready"` is not Windows camera, network, or SteamVR acceptance. The
 launcher also sets its working directory to the repository root, so relative
@@ -278,7 +281,8 @@ uv run --locked python .\run_mikotype.py run `
 
 Strict mode honors the explicit/configured port, including a port outside
 9000–10000, and fails before camera startup if it is unavailable or belongs to
-an incompatible process. The service does not yet start a live SteamVR consumer.
+an incompatible process. Start the optional Windows SteamVR bridge separately;
+the vision service never launches SteamVR or changes your VPN/Pimax settings.
 
 The default camera backend is `msmf`. If that camera cannot open reliably, use
 the Settings page to try `dshow`, then `any`. Refresh/select a camera in the
@@ -306,51 +310,45 @@ and rebuilds the adaptive GLB. Restart the runtime after applying a completed
 bundle. Adding/removing key IDs or changing labels/anchor assignments remains a
 manual layout-file operation in V0.1.
 
-## SteamVR source-only smoke on the same Windows PC
+## Live SteamVR / Home integration on Windows
 
-The current SteamVR work is still an isolated feasibility Demo. Start its
-asset lab on the same Windows PC:
+Use the production integration in [`integrations/steamvr`](integrations/steamvr/README.md),
+not the historical `demo/steamvr_home_hybrid` smoke server. Start the main
+Windows service normally, then open **`/steamvr` on its actual selected port**.
+No additional web port is required.
 
-```powershell
-$env:PYTHONPATH = "$PWD\src;$PWD"
-uv run --locked python -m demo.steamvr_home_hybrid.app `
-  --host 127.0.0.1 --port 8776
-```
+1. Finish camera/keyboard calibration and restart after applying your bundle.
+2. On `/steamvr`, download the current user keyboard's **driver assets** and
+   the **session bridge token**. The token is a local credential: keep it private,
+   do not commit/share it, and download a new one after restarting MikoType.
+3. Follow the integration README to build/install the `mikotypekeyboard` driver
+   using Windows x64, Visual Studio Desktop C++, CMake and the
+   [OpenVR SDK](https://github.com/ValveSoftware/openvr/releases/tag/v2.15.6).
+   Start SteamVR/Home with your normal Pimax setup, then start the bridge with
+   the exact service URL and token file. No proxy/VPN/Pimax setting is modified.
+4. Set the keyboard position/rotation in `/steamvr`, then explicitly confirm
+   the position and enable display. Values are metres in SteamVR standing space;
+   pitch `-90°` lays the exported keyboard on a horizontal desk. Adjust while
+   viewing the headset. Pose settings are session-only and start disabled.
+5. Observe live bridge/Home status, frame freshness and model version. Submit a
+   short headset observation, click **collect SteamVR logs**, then **export
+   diagnostics**. The JSON includes bounded bridge logs and collected SteamVR
+   log tails, but not camera images or the bridge token. Review it before sharing.
 
-Open <http://127.0.0.1:8776/>, then choose **验证并生成源码包 (Validate and
-generate source bundle)**. With SteamVR, a headset, Visual Studio 2022 Desktop
-C++, CMake, and [OpenVR SDK 2.15.6](https://github.com/ValveSoftware/openvr/releases/tag/v2.15.6)
-installed, continue in PowerShell:
+The bridge publishes a real 3D render model through a **GenericTracker** and
+composites live fingertip bubbles/key highlights through a **2D surface Overlay**.
+The thin key outline is also a fallback when Home does not draw GenericTracker
+models. Driver registration/API success is not proof that Home displayed a
+3D object. Fingertip depth and automatic metric camera-to-VR alignment are not
+implemented: moving the physical keyboard or resetting room setup requires
+manual realignment. This is Windows/headset acceptance work, not a Mac-verified
+SteamVR success claim.
 
-```powershell
-$SteamVrSmokeDir = Join-Path $PWD ("steamvr-smoke-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
-Expand-Archive `
-  .\demo\steamvr_home_hybrid\output\deskvision_steamvr_home_windows_source.zip `
-  -DestinationPath $SteamVrSmokeDir
-Set-Location (Join-Path $SteamVrSmokeDir "deskvision_steamvr_home_smoke_source")
-
-.\packaging\build.ps1 -OpenVrSdkRoot "C:\path\to\openvr"
-.\packaging\install.ps1
-```
-
-Now restart SteamVR, enable `deskvisionkeyboard` under **Manage Add-ons**, wait
-for `vrserver` to become ready, and only then run:
-
-```powershell
-.\packaging\smoke.ps1
-```
-
-Inspect the SteamVR logs and the headset before cleanup. When the smoke session
-is finished:
-
-```powershell
-.\packaging\uninstall.ps1
-```
-
-This smoke path uses a fixed HMD-relative `GenericTracker` pose and a static
-Overlay. It does not consume the live FastAPI state, render dynamic key
-highlights, or provide camera-to-SteamVR metric 6DoF alignment. Those remain
-the next Windows + HMD implementation and acceptance tasks.
+Loss of fresh camera/marker data clears the Overlay; loss of bridge/service,
+disable/unconfirm, or mismatched installed model clears the device pose too.
+After layout/model changes, re-export/reinstall the assets and restart SteamVR.
+The native code is separate from the Python vision runtime; no Demo imports or
+SteamVR SDK are required for normal Mac/Windows camera testing.
 
 ## Experimental distributed inference boundary
 
@@ -384,7 +382,7 @@ a remote video service.
 
 ## API boundary
 
-The local browser and future same-host Windows VR consumer can use:
+The local browser and same-host Windows VR consumer use:
 
 - `GET /api/state` or the current diagnostic `WS /ws/state` for latest
   `SceneState 0.2`. A future VR consumer must enforce its own TTL from
@@ -394,6 +392,10 @@ The local browser and future same-host Windows VR consumer can use:
 - `GET /api/model/manifest` and `GET /api/model/keyboard.glb` for the adaptive
   3D keyboard.
 - `GET /api/health` for local diagnostics.
+- `/api/steamvr/status`, `/api/steamvr/diagnostics` and explicit
+  `POST /api/steamvr/collect-logs` for VR observability. The bridge uses
+  token-protected `/api/steamvr/frame.bin` and `/api/steamvr/events`; see the
+  [wire/control contract](contracts/steamvr_bridge.md).
 - `GET /api/camera` for camera status; explicit `POST /api/camera/scan` and
   `POST /api/camera/select` power the local camera panel, not the VR data path.
 - `WS /ws/bundle`, `/snapshot.jpg`, and `/stream.mjpg` for the local inspector,
@@ -412,6 +414,7 @@ tests/              isolated automated tests
 demo/               experiments; never imported by production
 dispose/            recoverable retired content; excluded from runtime
 windows_vr/         same-host Windows VR integration boundary
+integrations/steamvr/ native production driver/bridge, separate Windows build
 ```
 
 Previously discussed experimental features remain isolated in `demo/`.

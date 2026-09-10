@@ -44,7 +44,8 @@ of the default `pytest` run. Record actual outcomes rather than treating a
 passing synthetic suite as camera/calibration acceptance.
 
 SteamVR Home, headset visibility, and camera-to-VR alignment remain separate
-Windows + HMD checks under `tests/demo/steamvr_home_hybrid` and `windows_vr`;
+Windows + HMD checks for `integrations/steamvr`; production adapter regressions
+live in `tests/steamvr`, while historical smoke tests remain in `tests/demo/steamvr_home_hybrid`;
 they are not prerequisites for this WebUI suite or Mac service startup.
 
 ### Observed Mac hardware smoke — 2026-09-09 / 0.1.0.dev3

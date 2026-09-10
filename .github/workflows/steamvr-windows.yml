@@ -1,0 +1,57 @@
+name: SteamVR Windows native build
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "integrations/steamvr/**"
+      - "src/deskvision/steamvr/assets.py"
+      - "data/keyboards/kzzi_user_adjustable_82/adaptive_keyboard*"
+      - ".github/workflows/steamvr-windows.yml"
+  pull_request:
+    paths:
+      - "integrations/steamvr/**"
+      - "src/deskvision/steamvr/assets.py"
+      - ".github/workflows/steamvr-windows.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  native-build:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fetch official Valve OpenVR SDK v2.15.6
+        uses: actions/checkout@v4
+        with:
+          repository: ValveSoftware/openvr
+          ref: 41bc3825fd35b04047610c86fee26fb33b017b29
+          path: _openvr_sdk
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          architecture: x64
+      - name: Export checked-in adaptive seed (no camera or inference dependencies)
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = Join-Path $PWD "src"
+          $env:MIKOTYPE_CI_ASSETS = Join-Path $env:RUNNER_TEMP "mikotype-openvr-assets"
+          python -c "import os; from deskvision.steamvr.assets import export_openvr_assets; export_openvr_assets('data/keyboards/kzzi_user_adjustable_82/adaptive_keyboard.glb', 'data/keyboards/kzzi_user_adjustable_82/adaptive_keyboard_manifest.json', os.environ['MIKOTYPE_CI_ASSETS'])"
+          if ($LASTEXITCODE -ne 0) { throw "Asset export failed." }
+          "MIKOTYPE_CI_ASSETS=$env:MIKOTYPE_CI_ASSETS" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Build Windows x64 native driver and live bridge
+        shell: pwsh
+        run: |
+          ./integrations/steamvr/scripts/build.ps1 -OpenVrSdkRoot (Join-Path $PWD "_openvr_sdk") -AssetDirectory $env:MIKOTYPE_CI_ASSETS
+      - name: Upload native build (hardware validation is separate)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mikotype-steamvr-windows-x64
+          path: |
+            integrations/steamvr/dist/
+            integrations/steamvr/scripts/
+            integrations/steamvr/README.md
+          retention-days: 14
+          if-no-files-found: error

@@ -21,7 +21,7 @@ SERVICE_SCHEMA_VERSION = "mikotype-service-0.2"
 AUTO_PORT_START = 9000
 AUTO_PORT_END = 10000
 REQUIRED_CONTROL_CAPABILITIES = frozenset(
-    {"runtime_inspector", "runtime_settings", "keyboard_setup"}
+    {"runtime_inspector", "runtime_settings", "keyboard_setup", "steamvr_observability"}
 )
 _MAX_SERVICE_RESPONSE_BYTES = 64 * 1024
 

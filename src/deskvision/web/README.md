@@ -114,11 +114,11 @@ routes, or another application's networking.
 
 Startup and reuse both print `OPEN THIS EXACT URL: ...`; operators should open
 only that address instead of assuming the preferred port was selected. The
-actual endpoint is also reported by `/api/service`. SteamVR production
-integration must either perform the same bounded loopback discovery and verify
-each candidate's identity through `/api/service`, or opt into `--strict-port`
-and fail closed. `/api/service` verifies a known candidate; it does not reveal
-an otherwise unknown port by itself.
+actual endpoint is also reported by `/api/service`. The separate SteamVR bridge
+requires that exact URL and a session token downloaded from `/steamvr`; it
+does not assume a fixed port or require strict-port mode. Wrong services cannot
+produce the expected authenticated binary protocol. `/api/service` verifies a
+known candidate; it does not reveal an otherwise unknown port by itself.
 
 The former `MikoType running at ...:8765` message preceded binding and could be
 followed by `WinError 10048`. It is absent from this revision. Repeated logs
@@ -147,9 +147,22 @@ Use the single URL printed at readiness, not the old Demo ports:
    behavior. These are observations, not proof of mechanical key presses.
 
 Browser key-state rendering does not verify headset visibility or spatial alignment.
-`demo/steamvr_home_hybrid` and `windows_vr` remain the independent Windows-only
-integration/acceptance boundary; this FastAPI process imports neither Demo
-code nor a SteamVR runtime.
+`integrations/steamvr` is the independently built Windows driver/bridge boundary;
+`demo/steamvr_home_hybrid` retains the historical static feasibility work.
+This FastAPI process imports neither Demo code nor a SteamVR runtime.
+
+## SteamVR observability (0.1.0.dev4)
+
+`/steamvr` provides pose confirmation, same-model Overlay preview, native bridge
+status, bounded logs, headset feedback and downloadable diagnostics. The bridge
+downloads latest RGBA/pose through a session-token endpoint. Current calibrated
+keyboard assets export from the immutable active runtime snapshot, never a Demo
+or stale staged layout. See `contracts/steamvr_bridge.md` for the API/wire format.
+
+Collecting SteamVR file logs is explicit, Windows-only, bounded, and restricted
+to known names beneath the registry-discovered Steam log folder. No user file
+path endpoint, remote upload, VPN modification or automatic driver install exists.
+Mac can validate this page/API/rendering, but cannot certify SteamVR/Home visibility.
 
 This console imports only production modules. Discussed experiments remain in
 `demo/`; retired scaffolding and obsolete copies are recoverable in `dispose/`

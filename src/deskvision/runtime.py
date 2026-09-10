@@ -52,6 +52,8 @@ from deskvision.video.latest_frame import LatestFrameStore
 from deskvision.video.opencv_camera import OpenCVCameraSource
 from deskvision.video.source import FrameSource
 from deskvision.web.app import DebugWebContext, create_debug_app
+from deskvision.web.steamvr import create_steamvr_router
+from deskvision.steamvr.service import SteamVRController
 
 
 class RuntimeBuildError(RuntimeError):
@@ -450,6 +452,13 @@ def build_runtime(
             model_snapshot=generated.glb,
             manifest_snapshot=generated.manifest,
         )
+        web_app = create_debug_app(context)
+        steamvr = SteamVRController(
+            state_store, generated.manifest, generated.glb,
+            stale_after_ms=config.diagnostics.stale_frame_threshold_ms,
+        )
+        web_app.state.steamvr = steamvr
+        web_app.include_router(create_steamvr_router(steamvr))
         return DeskVisionRuntime(
             config=config,
             artifacts=artifacts,
@@ -461,7 +470,7 @@ def build_runtime(
             local_publisher=local_publisher,
             perception=worker,
             encoder=encoder,
-            web_app=create_debug_app(context),
+            web_app=web_app,
         )
     except Exception:
         if owns_hand_tracker:

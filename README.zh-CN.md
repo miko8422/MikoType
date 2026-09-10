@@ -26,7 +26,8 @@ Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvisi
 - 指尖 Bubble、可能直接接触的键位和按距离渐弱的周围键高亮。
 - 每个键对应独立 `key:<physical_key_id>` 节点的自适应 GLB。
 - 本机 FastAPI 检查界面、模型接口和 `SceneState 0.2` WebSocket。
-- 仅包含源码的 Windows OpenVR Driver、Render Model 和 Overlay 烟测包。
+- 独立 Windows OpenVR GenericTracker 驱动、实时 Overlay bridge，支持当前用户
+  键盘模型导出，以及 `/steamvr` 空间对齐、状态和日志观测页。
 
 系统输出的是“可能接触的键位”，不会将高亮声明为机械按压，也不会注入操作
 系统键盘输入。
@@ -46,8 +47,10 @@ Python 分发包与旧命令为了兼容仍使用 `vr-desk-vision` 和 `deskvisi
      + 可下载的自适应 3D 键盘 GLB
 
 独立的 Windows 验收模块（视觉服务不会自动启动）：
-  本机 FastAPI -> SteamVR 消费端 -> SteamVR Home / 头显
-  （实时消费端和空间对齐尚未完成）
+  本机 FastAPI -> Windows 实时 bridge -> GenericTracker 3D 键盘
+                                     -> 平面 Overlay 高亮 + 指尖
+  WebUI /steamvr <- bridge 日志 + 手动收集 SteamVR 日志
+  （手动房间空间对齐；需要 Windows / 头显实机验收）
 ```
 
 所有实时视觉阶段使用同一个采集帧。下游变慢时会跳过已被替代的帧，不会堆积
@@ -175,7 +178,7 @@ python .\run_mikotype.py run `
   --acknowledge-mediapipe-metrics
 ```
 
-本次版本的 `--version` 应显示 `MikoType 0.1.0.dev3`，源码路径应位于当前仓库。
+本次版本的 `--version` 应显示 `MikoType 0.1.0.dev4`，源码路径应位于当前仓库。
 `doctor` 只诊断安装和配置文件；`"status": "ready"` 不代表 Windows 摄像头、
 网络或 SteamVR 已验收。入口还会将工作目录设为仓库根目录，因此命令中的相对
 路径以仓库根目录为准。若要单独核查旧的裸命令来自哪里，可执行：
@@ -239,8 +242,8 @@ uv run --locked python .\run_mikotype.py run `
 ```
 
 严格模式会使用显式指定或配置中的端口，包括 9000–10000 以外的端口。如果它
-不可用或属于身份不匹配的进程，MikoType 会在打开摄像头前失败。目前仍不会
-启动 SteamVR 实时消费端。
+不可用或属于身份不匹配的进程，MikoType 会在打开摄像头前失败。可选的 Windows
+SteamVR bridge 单独启动；视觉服务不会自动启动 SteamVR 或修改 VPN/Pimax 设置。
 
 默认摄像头后端是 `msmf`。如果摄像头无法稳定打开，可在参数设置页依次尝试
 `dshow`、`any`；选错摄像头时在摄像头面板刷新并选择设备。V0.1 会请求分辨率和 FPS，
@@ -264,49 +267,36 @@ Setup 会使用现有布局的键位清单和校准顺序，允许用户修正�
 自适应 GLB。应用完整键盘包后需要重启运行时。V0.1 中新增/删除 key ID、
 修改标签或 Marker Anchor 分配仍需手动编辑 Layout 文件。
 
-## 同一台 Windows 上的 SteamVR 源码烟测
+## Windows 实时 SteamVR / Home 接入
 
-当前 SteamVR 工作仍是隔离的可行性 Demo。在同一台 Windows 电脑上启动资产
-工具：
+请使用生产接入目录 [`integrations/steamvr`](integrations/steamvr/README.md)，
+而不是历史 `demo/steamvr_home_hybrid` 静态烟测服务。按前面的命令启动 Windows
+主服务后，打开**实际端口上的 `/steamvr`**；不需要另开 WebUI 端口。
 
-```powershell
-$env:PYTHONPATH = "$PWD\src;$PWD"
-uv run --locked python -m demo.steamvr_home_hybrid.app `
-  --host 127.0.0.1 --port 8776
-```
+1. 完成摄像头选择和键盘校准；应用键盘包后重启主服务。
+2. 在 `/steamvr` 下载当前用户键盘的**驱动模型资产**和**本次会话凭证**。
+   凭证仅用于本机 bridge 鉴权，不要提交或分享；主服务重启后要重新下载。
+3. 按接入目录 README，在 Windows x64 使用 Visual Studio Desktop C++、CMake
+   和 [OpenVR SDK](https://github.com/ValveSoftware/openvr/releases/tag/v2.15.6)
+   编译、安装 `mikotypekeyboard` 驱动。按平常的 Pimax 流程打开 SteamVR/Home，
+   再用主服务的准确 URL 和凭证文件启动 bridge。不会修改 VPN、代理或 Pimax 设置。
+4. 在 WebUI 设置键盘的位置、旋转，然后明确确认位置并启用显示。位置单位是
+   SteamVR standing 坐标系下的米；默认 pitch `-90°` 将键盘平放。需要戴头显
+   手动对齐。这些参数只作用于本次运行，重启默认关闭并要求重新确认。
+5. 观察连接、Home 进程、帧新鲜度和模型版本；写下头显里的实际现象，点击
+   **收集 SteamVR 日志**，然后**导出诊断**。JSON 包含有上限的 bridge 日志和
+   已收集的 SteamVR 日志末尾，不包含摄像头图片或凭证。分享前请检查隐私信息。
 
-打开 <http://127.0.0.1:8776/>，点击“验证并生成源码包”。准备好 SteamVR、
-头显、Visual Studio 2022 Desktop C++、CMake 和
-[OpenVR SDK 2.15.6](https://github.com/ValveSoftware/openvr/releases/tag/v2.15.6)
-后，继续在 PowerShell 中执行：
+这里通过 GenericTracker 提交真正的 3D 键盘模型，同时用**二维表面 Overlay**
+叠加实时指尖 Bubble 和键位高亮。细键位轮廓也可用于 Home 不绘制 GenericTracker
+时的平面回退，但不能把这个回退称为 3D 模型显示成功。驱动注册/API 成功不代表
+Home 内一定可见，需要头显验收。
 
-```powershell
-$SteamVrSmokeDir = Join-Path $PWD ("steamvr-smoke-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
-Expand-Archive `
-  .\demo\steamvr_home_hybrid\output\deskvision_steamvr_home_windows_source.zip `
-  -DestinationPath $SteamVrSmokeDir
-Set-Location (Join-Path $SteamVrSmokeDir "deskvision_steamvr_home_smoke_source")
-
-.\packaging\build.ps1 -OpenVrSdkRoot "C:\path\to\openvr"
-.\packaging\install.ps1
-```
-
-随后手动重启 SteamVR，在 **Manage Add-ons** 中启用 `deskvisionkeyboard`，等待
-`vrserver` 正常运行后，再单独执行：
-
-```powershell
-.\packaging\smoke.ps1
-```
-
-完成日志和头显检查后再清理：
-
-```powershell
-.\packaging\uninstall.ps1
-```
-
-当前烟测使用固定头显相对位置的 `GenericTracker` 和静态 Overlay。它尚未消费
-实时 FastAPI 状态、渲染动态键帽高亮，也没有摄像机到 SteamVR 的米制 6DoF
-对齐。这些仍是下一个 Windows + HMD 开发和验收任务。
+尚未实现指尖真实深度和自动摄像头→VR 米制 6DoF 配准；移动实体键盘或重设房间后
+需重新手动对齐。摄像头/Marker 数据过期会隐藏 Overlay；bridge/主服务断开、
+取消显示/确认、驱动模型不匹配会同时清除设备位姿。布局变化后需重新导出/安装
+模型并重启 SteamVR。此处是待 Windows/头显验收的接入实现，不是 Mac 已验证
+SteamVR 成功。生产 Python 不导入 Demo，也不要求安装 OpenVR SDK。
 
 ## 实验性分布式推理边界
 
@@ -348,6 +338,10 @@ WebSocket 是无鉴权的本机诊断接口，不能直接暴露为远程视频�
   `POST /api/camera/select` 扫描、切换设备，仅供本机摄像头面板使用，不是 VR 数据路径。
 - `WS /ws/bundle`、`/snapshot.jpg` 和 `/stream.mjpg` 仅供本机检查界面使用，
   不进入 SteamVR 热路径。
+- `/api/steamvr/status`、`/api/steamvr/diagnostics`、手动
+  `POST /api/steamvr/collect-logs` 提供 VR 观测；bridge 使用凭证保护的
+  `/api/steamvr/frame.bin` 和 `/api/steamvr/events`，完整字段见
+  [接入契约](contracts/steamvr_bridge.md)。
 
 ## 项目结构
 

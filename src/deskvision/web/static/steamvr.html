@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MikoType · SteamVR 观测</title>
+    <link rel="stylesheet" href="/static/settings.css?v=steamvr-v1" />
+    <link rel="stylesheet" href="/static/steamvr.css?v=steamvr-v1" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <p class="eyebrow">MIKOTYPE · WINDOWS VR BRIDGE</p>
+        <h1>SteamVR 接入与观测</h1>
+        <p class="subtitle">把运行状态、空间对齐和头显反馈放在一起。连接成功不等于 SteamVR Home 已显示成功。</p>
+      </div>
+      <span id="connection-status" class="badge waiting" role="status">正在连接本机服务</span>
+    </header>
+    <nav class="site-nav" aria-label="MikoType 控制台">
+      <a href="/">运行状态</a>
+      <a href="/settings">参数设置</a>
+      <a href="/setup">键盘定位与校准</a>
+      <a href="/steamvr" class="active" aria-current="page">SteamVR 观测</a>
+    </nav>
+    <main>
+      <section class="card" aria-labelledby="bridge-heading">
+        <div class="card-heading">
+          <div><p class="eyebrow">CONNECTION ≠ VISIBILITY</p><h2 id="bridge-heading">接入状态</h2></div>
+          <a class="download-button" href="/api/steamvr/diagnostics" download="mikotype-steamvr-diagnostics.json">导出诊断 JSON</a>
+        </div>
+        <dl class="vr-metrics">
+          <div><dt>服务平台</dt><dd id="platform">—</dd></div>
+          <div><dt>Windows Bridge</dt><dd id="bridge-status">—</dd></div>
+          <div><dt>最近心跳</dt><dd id="heartbeat-age">—</dd></div>
+          <div><dt>VR 显示开关</dt><dd id="display-status">—</dd></div>
+          <div><dt>追踪数据 / Marker</dt><dd id="scene-status">—</dd></div>
+          <div><dt>键位 / 高亮 / 指尖</dt><dd id="scene-counts">—</dd></div>
+        </dl>
+        <p class="revision-row">自适应模型 <span id="model-revision" class="mono">—</span></p>
+        <details class="runtime-logs-details"><summary>Bridge 最近状态详情</summary><pre id="bridge-details">尚无 Bridge 上报。</pre></details>
+        <p id="host-warning" class="notice" hidden>当前是 Mac：可以检查键盘映射、接口和预览，但不能验证 SteamVR 驱动或 Home 的真实显示。请在 Windows + 头显上完成验证。</p>
+        <p id="service-error" class="message error" role="alert"></p>
+      </section>
+
+      <div class="vr-columns">
+        <section class="card preview-card" aria-labelledby="preview-heading">
+          <div class="card-heading"><div><p class="eyebrow">KEYBOARD-PLANE OVERLAY</p><h2 id="preview-heading">实时输出预览</h2></div><span class="badge waiting">约 1 Hz 观测</span></div>
+          <div class="preview-stage"><img id="vr-preview" alt="发送至 SteamVR 的键盘平面高亮与指尖投影预览" /><span id="preview-empty">等待输出预览</span></div>
+          <p class="group-description">这里只显示 2D Overlay 图层，不是头显截图。预览可保留键盘轮廓；数据过期、版本不匹配或位置未确认时，实际 VR 输出仍会隐藏。真正的自适应 3D 键盘由独立驱动提供；指尖为投影到键盘平面的 Bubble，不代表已恢复手部 3D 深度。</p>
+        </section>
+        <section class="card" aria-labelledby="install-heading">
+          <p class="eyebrow">FIRST WINDOWS RUN</p><h2 id="install-heading">Windows 接入顺序</h2>
+          <ol class="steps">
+            <li>启动 Windows 的 MikoType，使用终端打印的实际端口（9000–10000）。不要打开被其他软件占用的旧地址。</li>
+            <li>按项目 <code>integrations/steamvr/README.md</code> 构建、安装键盘驱动和 Bridge。需要 Windows、SteamVR、OpenVR SDK 和 C++ 构建工具。</li>
+            <li>下载当前键盘资源，按说明更新驱动的 render model。校准或布局改变后，请重新导出资源。</li>
+            <li>下载本次服务的 Bridge 凭证，再按说明启动 Bridge。服务重启后需要重新下载凭证。</li>
+            <li>打开 SteamVR Home，调整下方空间位置；确认后开启显示，再把头显中的实际结果反馈到日志。</li>
+          </ol>
+          <div class="button-row download-row">
+            <a class="download-button" href="/api/steamvr/driver-assets.zip" download="mikotype-steamvr-assets.zip">下载当前键盘资源</a>
+            <a id="download-token" class="download-button subtle" href="/api/steamvr/bridge-token" download="mikotype-steamvr-token.txt">下载 Bridge 凭证</a>
+          </div>
+          <p class="group-description private-note">凭证仅供本机 Bridge 使用，不显示在此页面、命令行参数或诊断日志中。请勿上传凭证文件；反馈时只分享诊断 JSON。</p>
+          <p id="token-message" class="message" role="status"></p>
+        </section>
+      </div>
+
+      <section class="card" aria-labelledby="alignment-heading">
+        <div class="card-heading"><div><p class="eyebrow">MANUAL STANDING-SPACE ALIGNMENT</p><h2 id="alignment-heading">键盘在 VR 空间中的位置</h2></div><span id="alignment-status" class="badge waiting">正在读取位置</span></div>
+        <p class="group-description alignment-description">使用 SteamVR 站立参考空间，单位为米和度：+X 向右、+Y 向上、−Z 向前。默认 Pitch −90° 将模型的 XY 平面放平；组合旋转矩阵为 Ry(Yaw) × Rx(Pitch) × Rz(Roll)。</p>
+        <form id="alignment-form" novalidate>
+          <div id="pose-controls" class="pose-grid"></div>
+          <p class="notice">这是手动固定的空间位置，不会随现实键盘自动移动。移动键盘或重置 SteamVR 房间坐标后必须重新对齐。先确认画面位置，再尝试实际触碰；不要凭虚拟模型盲目伸手。</p>
+          <div class="alignment-actions">
+            <p id="settings-message" class="message" role="status">读取设置后可调整。</p>
+            <div class="button-row">
+              <button id="hide-display" type="button" class="danger" disabled>停止 VR 显示</button>
+              <button id="save-pose" type="submit" disabled>保存位置（先隐藏）</button>
+              <button id="confirm-pose" type="button" class="primary" disabled>确认空间位置并显示</button>
+            </div>
+          </div>
+        </form>
+      </section>
+
+      <section class="card" aria-labelledby="logs-heading">
+        <div class="card-heading"><div><p class="eyebrow">BOUNDED DIAGNOSTIC EVENTS</p><h2 id="logs-heading">SteamVR 接入日志</h2></div><div class="button-row"><button id="pause-logs" type="button" aria-pressed="false">暂停日志滚动</button><a class="download-button" href="/api/steamvr/diagnostics" download="mikotype-steamvr-diagnostics.json">导出诊断 JSON</a></div></div>
+        <p class="group-description logs-description">包含 MikoType、Bridge 上报的连接与运行事件；不是 SteamVR / Pimax 全部系统日志。驱动注册成功、Overlay API 接受和 Home 中实际可见是不同的验收步骤。</p>
+        <div id="vr-logs" class="log-list" tabindex="0" role="region" aria-label="SteamVR 日志"><p class="log-empty">等待日志</p></div>
+        <p id="logs-caption" class="group-description">页面最多显示最近 200 条，完整保留范围以导出文件为准。</p>
+        <div class="runtime-logs-tools">
+          <button id="collect-runtime-logs" type="button" disabled>收集 SteamVR 日志</button>
+          <p id="runtime-logs-message" class="message" role="status">仅 Windows 可用；点击后才读取已知 SteamVR 日志文件。</p>
+        </div>
+        <details id="runtime-logs-details" class="runtime-logs-details"><summary>SteamVR / Home 原始日志快照</summary><pre id="runtime-logs-output">尚未手动收集。只读取服务允许的日志文件，不扫描任意目录。</pre></details>
+        <form id="feedback-form" class="feedback-form">
+          <label for="headset-feedback">头显中的实际结果</label>
+          <textarea id="headset-feedback" maxlength="1000" rows="3" placeholder="例如：Home 内键盘可见，但偏左约 10 cm；指尖可见，高亮不出现。请勿填写密码或凭证。" required></textarea>
+          <div class="alignment-actions"><p id="feedback-message" class="message" role="status"></p><button id="send-feedback" type="submit">写入诊断反馈</button></div>
+        </form>
+      </section>
+
+      <section class="card limitations-card" aria-labelledby="limits-heading">
+        <h2 id="limits-heading">验收边界</h2>
+        <ul id="runtime-limitations"><li>Mac 上未验证真实 SteamVR 运行；Windows 头显测试结果需要人工确认。</li></ul>
+        <p class="group-description">此页面不修改 VPN、不接管 Pimax 服务，也不会自动安装或注册驱动。请保留首次启动和显示异常时的诊断文件。</p>
+      </section>
+    </main>
+    <footer><span>MikoType · SteamVR observability</span><span>本机接口 · 无外部页面依赖</span><span>场景过期或未确认位置时不输出动态显示</span></footer>
+    <script src="/static/steamvr.js?v=steamvr-v1"></script>
+  </body>
+</html>
