@@ -69,6 +69,8 @@ main { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, .7fr
 .viewport { position: relative; margin: 0 18px; aspect-ratio: 16 / 9; overflow: hidden; border-radius: 12px; background: #02070b; border: 1px solid rgba(139, 206, 222, .16); }
 .viewport img, .viewport canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .viewport.mirrored img { transform: scaleX(-1); }
+.viewport.flipped-vertical img { transform: scaleY(-1); }
+.viewport.mirrored.flipped-vertical img { transform: scale(-1, -1); }
 .empty-message { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); background: rgba(2,7,11,.45); }
 [hidden] { display: none !important; }
 .notice { margin: 12px 20px 17px; color: var(--muted); font-size: 12px; line-height: 1.5; }

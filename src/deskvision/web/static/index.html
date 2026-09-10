@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MikoType · Local Tracking Inspector</title>
-    <link rel="stylesheet" href="/static/style.css?v=0.1.0.dev3" />
+    <link rel="stylesheet" href="/static/style.css?v=0.1.0.dev5" />
   </head>
   <body>
     <header>
@@ -20,13 +20,19 @@
     </header>
 
     <nav class="site-nav" aria-label="MikoType 控制台">
-      <a href="/" class="active" aria-current="page">运行状态</a>
-      <a href="/settings">参数设置</a>
-      <a href="/setup">键盘定位与校准</a>
+      <a href="/setup">基础设置与教程</a>
+      <a href="/" class="active" aria-current="page">实时追踪</a>
+      <a href="/settings">高级参数</a>
       <a href="/steamvr">SteamVR 观测</a>
     </nav>
 
     <main>
+      <section class="panel setup-intro" style="grid-column:1/-1">
+        <div class="panel-heading"><div><h2>先配置，再检查追踪效果</h2>
+          <p class="notice">基础设置集中展示已有配置；教程按摄像头、键位图、Anchor、触点、应用的顺序引导。已经校准好的键位可以跳过，不会重新写入。</p></div>
+          <a class="button" href="/setup">打开基础设置 / 教程</a>
+        </div>
+      </section>
       <section class="panel camera-panel">
         <div class="panel-heading">
           <div>
@@ -94,6 +100,6 @@
       <span>latest-frame-only</span>
       <span>调试界面不参与 SteamVR 运行时</span>
     </footer>
-    <script src="/static/app.js?v=0.1.0.dev3"></script>
+    <script src="/static/app.js?v=0.1.0.dev5"></script>
   </body>
 </html>

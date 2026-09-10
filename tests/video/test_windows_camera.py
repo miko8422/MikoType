@@ -10,6 +10,30 @@ from deskvision.video.opencv_camera import CameraSourceError, OpenCVCameraSource
 pytestmark = pytest.mark.unit
 
 
+@pytest.mark.parametrize("mirror,vertical", [(False, False), (True, False), (False, True), (True, True)])
+def test_input_orientation_reflections_publish_contiguous_matching_pixels(mirror, vertical):
+    import numpy as np
+
+    original = np.arange(18, dtype=np.uint8).reshape(2, 3, 3)
+    untouched = original.copy()
+    capture = FakeCapture(reads=[(True, original)])
+    source = OpenCVCameraSource(
+        CameraConfig(mirror=mirror, flip_vertical=vertical),
+        capture_factory=lambda *_: capture, cv2_module=FakeCV2(),
+    )
+    try:
+        source.open()
+        packet = source.read()
+        expected = untouched[::-1 if vertical else 1, ::-1 if mirror else 1, :]
+        np.testing.assert_array_equal(packet.image_bgr, expected)
+        np.testing.assert_array_equal(original, untouched)
+        assert packet.image_bgr.flags.c_contiguous
+        assert (packet.width, packet.height) == (3, 2)
+        assert packet.source_id == source.config.source_id
+    finally:
+        source.close()
+
+
 class FakeImage:
     shape = (2, 3, 3)
 

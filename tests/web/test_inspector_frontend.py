@@ -40,6 +40,7 @@ const nodes = new Map();
 const document = { getElementById(id) {
   if (!nodes.has(id)) nodes.set(id, {
     textContent: '', hidden: false, style: { setProperty() {} },
+    classList: { toggle() {} },
     getContext() { return ctx; },
     getBoundingClientRect() { return { width: 100, height: 50 }; },
     removeAttribute() {},
@@ -63,6 +64,15 @@ assert.equal(nodes.get('highlight-count').textContent, '0');
 assert.equal(arcs.length, 5);
 assert.equal(segments.length, 21);
 assert.deepEqual(arcs[0], [80, 20, 4.5]); // mirror matches video, not key-map coordinates
+for (const horizontal of [false, true]) {
+  for (const vertical of [false, true]) {
+    sandbox.applyViewConfig({mirror_preview: horizontal, flip_vertical_preview: vertical});
+    const point = sandbox.imagePoint({x: .2, y: .4}, {width: 100, height: 50});
+    assert.equal(point.x, horizontal ? 80 : 20);
+    assert.equal(point.y, vertical ? 30 : 20);
+    assert.deepEqual(arcs.at(-1), [point.x, point.y, 4.5]);
+  }
+}
 assert.equal(sandbox.rawFingertips({hands:[{landmarks:[{x:null,y:0}]}]}).length, 0);
 sandbox.clearLiveDisplay('stale');
 assert.equal(nodes.get('raw-fingertip-count').textContent, '0');

@@ -38,6 +38,10 @@ def create_setup_router(controller: KeyboardSetupController) -> APIRouter:
     def get_layout():
         return run(controller.layout_state)
 
+    @router.get("/api/setup/status")
+    def setup_status():
+        return run(controller.overview_state)
+
     @router.put("/api/setup/layout")
     def save_layout(payload: Mapping[str, object]):
         return run(lambda: controller.save_layout(payload))

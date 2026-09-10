@@ -261,6 +261,7 @@ def test_default_auto_port_reports_ready_only_after_successful_server_startup(
             self.frames = LatestFrameStore()
             self.states = LatestSceneStateStore()
             self.artifacts = SimpleNamespace(layout=SimpleNamespace(keys=("key",)))
+            self.pipeline = SimpleNamespace(mapping_guard=None)
 
             @self.web_app.get("/")
             def index():
@@ -268,6 +269,7 @@ def test_default_auto_port_reports_ready_only_after_successful_server_startup(
 
         def start(self, *, allow_camera_failure=False) -> None:
             assert allow_camera_failure
+            assert callable(self.pipeline.mapping_guard)
             events.append("runtime_started")
 
         def stop(self) -> None:

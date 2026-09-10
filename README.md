@@ -90,14 +90,15 @@ settings. Close an older camera Demo if it is using the same device.
 Open the **actual** `OPEN THIS EXACT URL` printed after startup. The automatic
 port range is 9000–10000. Use this single console in order:
 
-1. `/settings`: refresh the camera list, select the intended camera and apply
-   it. If the default camera could not open, the console remains available for
-   selection/retry. AVFoundation is the explicit Mac backend. Verify the preview
-   and actual
-   frame metrics; a requested FPS is not a guarantee of hardware throughput.
-2. `/setup`: adjust key positions/sizes, save the staging layout, register the
-   physical markers, then capture five right-index contacts per key. After a
-   complete calibration, apply the keyboard bundle and restart as prompted.
+1. `/setup`: start at the settings overview. Click **Start tutorial** to follow
+   camera → layout → Marker anchors → five contacts per key → apply/restart.
+   Existing valid layouts/calibration can be reused with **Skip**; navigating
+   the tutorial does not save, reset, or start sampling.
+2. In the camera step, adjust horizontal/vertical **preview** flips as needed.
+   `/settings` offers device selection and advanced input correction. If the
+   default camera could not open, the console remains available for selection
+   and retry. AVFoundation is the Mac backend. Check measured FPS, not only the
+   requested value. Apply a newly completed keyboard bundle and restart as prompted.
 3. `/`: check the cyan raw MediaPipe hand skeleton/fingertips first; these do
    not require a visible keyboard marker. Green bubbles and key highlights
    represent mapped fingertips/candidates and require a usable keyboard pose.
@@ -242,9 +243,9 @@ and one camera then host the complete local control console:
 - `/settings` selects the active camera and validates/saves allowlisted
   camera, preview, MediaPipe, Marker, interaction, pipeline, and diagnostic
   parameters.
-- `/setup` adjusts the existing keys' positions and sizes, registers Marker
-  anchors, captures contacts in the layout's key order, and rebuilds the
-  adaptive 3D keyboard.
+- `/setup` shows available saved configuration and calibration progress, with
+  an ordered tutorial and direct module entries. It edits key geometry,
+  registers anchors, captures contacts, and rebuilds the adaptive 3D keyboard.
 
 WebUI settings are written atomically to the gitignored
 `configs/windows.local.yaml`. The camera selection action can apply a device
@@ -309,6 +310,29 @@ captures five right-index contacts per key, validates all artifact revisions,
 and rebuilds the adaptive GLB. Restart the runtime after applying a completed
 bundle. Adding/removing key IDs or changing labels/anchor assignments remains a
 manual layout-file operation in V0.1.
+
+The overview reports files that actually exist, including compatible saved
+contact progress; it does not invent a completed hardware test. Opening it,
+moving between steps, or skipping a saved layout does not rewrite calibration.
+Saving a changed layout or explicitly starting a replacement registration
+invalidates dependent **staging** data; active keyboard files stay unchanged
+until Apply. The UI requests confirmation before these replacement actions.
+
+Camera orientation has two levels:
+
+- **Preview mirror / vertical flip** changes video and overlays together,
+  persists immediately, and keeps algorithm coordinates and calibration intact.
+- **Advanced input correction** changes the actual pixels consumed by both
+  MediaPipe and ArUco. Use it only when the source itself is reversed. Changing
+  it blocks old mapped fingertips/highlights until new anchors and contacts are
+  calibrated, applied, and the service restarted. Raw hand tracking remains
+  observable. A software flip cannot detect a driver's hidden mirror setting.
+
+Anchor progress now displays bounded sampling progress (for example `5/5`),
+separate from the rolling inlier count, stability, and lock readiness.
+Five samples alone do not prove stability; follow the shown reason if locking
+is unavailable. This fixes the misleading `48/5` presentation without weakening
+the underlying stability checks or requiring all six markers in every frame.
 
 ## Live SteamVR / Home integration on Windows
 

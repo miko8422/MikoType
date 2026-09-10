@@ -12,7 +12,8 @@ const ui = {
   error: document.getElementById("runtime-error"),
 };
 
-let config = { mirror_preview: true };
+let config = { mirror_preview: true, flip_vertical_preview: false };
+let lastRenderedState = null;
 let keyElements = new Map();
 let socket = null;
 let pendingBundle = null;
@@ -43,7 +44,7 @@ function rawFingertips(state) {
 function imagePoint(point, bounds) {
   return {
     x: (config.mirror_preview ? 1 - point.x : point.x) * bounds.width,
-    y: point.y * bounds.height,
+    y: (config.flip_vertical_preview ? 1 - point.y : point.y) * bounds.height,
   };
 }
 
@@ -118,8 +119,7 @@ function drawFingertips(state) {
   context.clearRect(0, 0, bounds.width, bounds.height);
   drawRawHands(context, state, bounds);
   for (const tip of state.fingertips || []) {
-    const x = (config.mirror_preview ? 1 - Number(tip.image_x) : Number(tip.image_x)) * bounds.width;
-    const y = Number(tip.image_y) * bounds.height;
+    const {x, y} = imagePoint({ x: Number(tip.image_x), y: Number(tip.image_y) }, bounds);
     const confidence = Math.max(0, Math.min(1, Number(tip.confidence) || 0));
     const radius = 9 + confidence * 7;
     const gradient = context.createRadialGradient(x, y, 2, x, y, radius * 2.2);
@@ -154,6 +154,7 @@ function renderHighlights(state) {
 }
 
 function clearLiveDisplay(reason) {
+  lastRenderedState = null;
   decodeSequence += 1;
   pendingBundle = null;
   window.clearTimeout(staleTimer);
@@ -228,6 +229,7 @@ function commitBundle(metadata, imageBlob) {
 }
 
 function renderState(state) {
+  lastRenderedState = state;
   ui.empty.hidden = true;
   ui.frame.textContent = `Frame ${state.source_frame_id ?? "—"}`;
   const diagnostics = state.diagnostics || {};
@@ -304,6 +306,8 @@ function connectBundle() {
 
 async function refreshHealth() {
   try {
+    const configResponse = await fetch("/api/config", { cache: "no-store" });
+    if (configResponse.ok) applyViewConfig(await configResponse.json());
     const response = await fetch("/api/health", { cache: "no-store" });
     if (!response.ok) throw new Error(`health ${response.status}`);
     const health = await response.json();
@@ -318,6 +322,14 @@ async function refreshHealth() {
   }
 }
 
+function applyViewConfig(payload) {
+  config = payload;
+  ui.viewport.classList.toggle("mirrored", Boolean(config.mirror_preview));
+  ui.viewport.classList.toggle("flipped-vertical", Boolean(config.flip_vertical_preview));
+  // Redraw even if the camera has not produced another frame yet.
+  if (lastRenderedState) drawFingertips(lastRenderedState);
+}
+
 async function start() {
   try {
     const [configResponse, layoutResponse] = await Promise.all([
@@ -327,9 +339,8 @@ async function start() {
     if (!configResponse.ok || !layoutResponse.ok) {
       throw new Error(`config ${configResponse.status}, layout ${layoutResponse.status}`);
     }
-    config = await configResponse.json();
+    applyViewConfig(await configResponse.json());
     configureLayout(await layoutResponse.json());
-    ui.viewport.classList.toggle("mirrored", Boolean(config.mirror_preview));
   } catch (error) {
     ui.error.hidden = false;
     ui.error.textContent = `初始化调试界面失败：${error}`;

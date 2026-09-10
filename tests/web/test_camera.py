@@ -62,6 +62,24 @@ def test_explicit_scan_and_select_delegate_to_runtime():
     assert calls == ["scan", (1, "avfoundation")]
 
 
+@pytest.mark.parametrize("endpoint,names", [
+    ("view", ("mirror_preview", "flip_vertical_preview")),
+    ("orientation", ("mirror", "flip_vertical")),
+])
+def test_camera_orientation_endpoint_validates_booleans_and_delegates(endpoint, names):
+    client, controller, calls = _camera()
+    callback = lambda x, y: calls.append((x, y)) or {"view": dict(zip(names, (x, y)))}
+    setattr(controller, f"apply_{endpoint}", callback)
+    response = client.post(f"/api/camera/{endpoint}", json=dict(zip(names, (True, False))))
+    assert response.status_code == 200
+    assert calls == [(True, False)]
+    for invalid in [{}, {names[0]: True}, {names[0]: 1, names[1]: False},
+                    {names[0]: True, names[1]: "false"},
+                    {names[0]: True, names[1]: False, "unexpected": True}]:
+        assert client.post(f"/api/camera/{endpoint}", json=invalid).status_code == 422
+    assert calls == [(True, False)]
+
+
 @pytest.mark.parametrize("payload", [
     {}, {"device_index": 0},
     {"device_index": True, "backend": "any"},

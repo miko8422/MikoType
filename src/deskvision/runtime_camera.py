@@ -38,6 +38,12 @@ class RuntimeCameraSession:
                                   if item["device_index"] == camera.device_index),
                                  f"Camera {camera.device_index}"),
                     "running": running,
+                    "mirror": camera.mirror,
+                    "flip_vertical": camera.flip_vertical,
+                },
+                "view": {
+                    "mirror_preview": self.runtime.config.debug_ui.mirror_preview,
+                    "flip_vertical_preview": self.runtime.config.debug_ui.flip_vertical_preview,
                 },
                 "devices": self._devices,
                 "status": self.runtime.status,
@@ -64,15 +70,38 @@ class RuntimeCameraSession:
         with self._lock:
             validate_camera_backend(self.runtime.config.deployment.target_os, backend)
             camera = replace(self.runtime.config.camera, device_index=device_index, backend=backend)
+            return self._apply_camera(camera)
+
+    def apply_orientation(self, mirror: bool, flip_vertical: bool) -> dict[str, object]:
+        with self._lock:
+            camera = replace(self.runtime.config.camera, mirror=mirror, flip_vertical=flip_vertical)
+            return self._apply_camera(camera)
+
+    def apply_view(self, mirror_preview: bool, flip_vertical_preview: bool) -> dict[str, object]:
+        """Persist before changing the view; never touch camera or calibration."""
+        with self._lock:
+            view = {"mirror_preview": mirror_preview, "flip_vertical_preview": flip_vertical_preview}
+            # Dataclass validation applies to non-HTTP callers too.
+            debug_ui = replace(self.runtime.config.debug_ui, **view)
+            self.settings.save({"values": {"debug_ui": view}})
+            self.runtime.config = replace(self.runtime.config, debug_ui=debug_ui)
+            self.runtime.web_app.state.camera_view = view
+            self.settings.accept_active_view(**view)
+            return self.status()
+
+    def _apply_camera(self, camera) -> dict[str, object]:
+        with self._lock:
             self._error = None
             try:
                 with self.setup.camera_change(camera):
                     self.runtime.reconfigure_camera(camera)
-                self.settings.accept_active_camera(device_index, backend)
+                self.settings.accept_active_camera(camera.device_index, camera.backend,
+                                                  mirror=camera.mirror, flip_vertical=camera.flip_vertical)
                 # A failed hardware open must not replace the last saved choice.
                 try:
                     self.settings.save({"values": {"camera": {
-                        "device_index": device_index, "backend": backend,
+                        "device_index": camera.device_index, "backend": camera.backend,
+                        "mirror": camera.mirror, "flip_vertical": camera.flip_vertical,
                     }}})
                 except Exception as exc:
                     raise RuntimeError(
@@ -81,5 +110,16 @@ class RuntimeCameraSession:
                     ) from exc
             except Exception as exc:
                 self._error = str(exc)
+                # A failed stop/configure may leave the *previous* source live.
+                # The setup transaction had already recorded the requested
+                # orientation; restore its identity to what runtime actually
+                # retained, without clearing the recalibration safety markers.
+                if self.setup.camera_config != self.runtime.config.camera:
+                    try:
+                        with self.setup.camera_change(self.runtime.config.camera):
+                            pass
+                    except Exception as reconcile_error:
+                        self._error += f"; camera calibration identity recovery failed: {reconcile_error}"
+                        exc.add_note(self._error)
                 raise
             return self.status()

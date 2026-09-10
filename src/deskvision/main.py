@@ -326,6 +326,14 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
                 states=runtime.states,
                 workspace=SetupWorkspace(workspace_path),
             )
+            runtime.pipeline.mapping_guard = setup_controller.runtime_mapping_block_reason
+            camera_binding = setup_controller.bind_runtime_camera()
+            if not camera_binding["bound"]:
+                print(
+                    "Camera calibration baseline unavailable; keyboard mapping is disabled. "
+                    f"The setup console remains available: {camera_binding.get('error', 'unknown error')}",
+                    flush=True,
+                )
             settings_controller = RuntimeSettingsController(
                 base_config_path=config_path,
                 active_config=requested_config,
@@ -349,6 +357,8 @@ def _serve(args: argparse.Namespace, *, landing_path: str) -> int:
                 status=camera_session.status,
                 scan=camera_session.scan,
                 apply=camera_session.apply,
+                apply_view=camera_session.apply_view,
+                apply_orientation=camera_session.apply_orientation,
             )))
             runtime.start(allow_camera_failure=True)
             url = endpoint.url

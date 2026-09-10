@@ -341,6 +341,13 @@ def test_service_identity_requires_matching_config_workspace_and_capabilities(
         workspace_path=workspace,
         config_revision=configuration_revision(config),
     ) is None
+    legacy = {**payload, "capabilities": sorted(REQUIRED_CONTROL_CAPABILITIES - {"guided_setup"})}
+    assert "guided_setup" in str(service_identity_mismatch(
+        legacy,
+        config_path=config_path,
+        workspace_path=workspace,
+        config_revision=configuration_revision(config),
+    ))
     assert "workspace" in str(
         service_identity_mismatch(
             payload,

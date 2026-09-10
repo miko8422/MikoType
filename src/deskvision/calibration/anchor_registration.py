@@ -394,7 +394,24 @@ class AnchorRegistrationAccumulator:
             estimate = estimates[marker_id]
             spread = estimate["spread"]
             stable = isinstance(spread, float) and spread <= self.max_spread_reference
-            ready = int(estimate["inlier_count"]) >= self.required_samples and stable
+            count = int(estimate["inlier_count"])
+            enough_samples = count >= self.required_samples
+            geometry_valid = False
+            geometry_reason = "incomplete_marker_set"
+            if estimate["aggregate"] is not None:
+                geometry_valid, geometry_reason = self._geometry_quality({marker_id: estimate})
+            ready = enough_samples and stable and geometry_valid
+            status = (
+                "collecting" if not enough_samples else
+                "unstable" if not stable else
+                "invalid_geometry" if not geometry_valid else "ready"
+            )
+            hint = {
+                "collecting": "继续采集；保持定位块清晰，可分批露出定位块。",
+                "unstable": "样本数量已足够，但位置波动过大；请固定键盘和镜头、减少反光，并让定位块在画面中更大。",
+                "invalid_geometry": "定位块形状不可靠；请检查是否遮挡、过度倾斜或使用了错误的定位块。",
+                "ready": "采样与稳定性检查通过。",
+            }[status]
             if ready:
                 ready_ids.append(marker_id)
             last_seen = self._last_seen_ms.get(marker_id)
@@ -402,11 +419,21 @@ class AnchorRegistrationAccumulator:
                 {
                     "marker_id": marker_id,
                     "key_id": self.marker_key_ids[marker_id],
-                    "sample_count": int(estimate["inlier_count"]),
+                    # Keep the rolling-window diagnostics separate from the
+                    # bounded completion indicator shown in the setup UI.
+                    "sample_count": count,
+                    "completion_count": min(count, self.required_samples),
+                    "remaining_samples": max(0, self.required_samples - count),
                     "observation_count": int(estimate["observation_count"]),
+                    "outlier_count": int(estimate["outlier_count"]),
                     "required_samples": self.required_samples,
                     "ready": ready,
+                    "stable": stable,
+                    "status": status,
+                    "reason": geometry_reason if status == "invalid_geometry" else status,
+                    "hint": hint,
                     "spread_reference": spread,
+                    "max_spread_reference": self.max_spread_reference,
                     "last_seen_age_ms": (
                         max(0.0, timestamp_ms - last_seen)
                         if timestamp_ms is not None and last_seen is not None
@@ -434,11 +461,33 @@ class AnchorRegistrationAccumulator:
                     break
         elif len(ready_ids) >= self.minimum_markers:
             reason = "reference_marker_not_ready"
+        elif any(marker["status"] == "unstable" for marker in markers):
+            reason = "marker_samples_unstable"
+        elif any(marker["status"] == "invalid_geometry" for marker in markers):
+            reason = "marker_geometry_invalid"
         ready = bool(selected)
+        reason_hint = {
+            "marker_samples_unstable": "部分定位块数量已足够，但仍需改善稳定性。",
+            "reference_marker_not_ready": "基准定位块尚未稳定，请重新露出基准定位块。",
+            "overlapping_marker_centers": "定位块的参考位置重叠；请检查不同定位块的 ID 和实际摆放位置。",
+            "anchor_distribution_too_narrow": "定位块分布过窄或接近一条直线；请露出键盘不同角落的定位块。",
+            "marker_geometry_invalid": "定位块形状不可靠，请检查遮挡、反光和倾斜。",
+            "implausible_marker_quad": "定位块组合形状不可靠，请检查遮挡、反光和倾斜。",
+            "collecting_marker_samples": "继续采集；定位块可以分批露出，无需全部同时可见。",
+        }.get(reason, "")
+        summary = (
+            f"{len(selected)} 个定位块通过检查，可以锁定；不需要全部定位块同时可见。"
+            if ready else
+            f"已稳定 {len(ready_ids)} 个定位块；锁定至少需要 {self.minimum_markers} 个（共 {len(markers)} 个可选）。"
+            + (f" {reason_hint}" if reason_hint else "")
+        )
         return {
             "schema_version": ANCHOR_REGISTRATION_SCHEMA_VERSION,
             "ready": ready,
             "reason": reason,
+            "summary": summary,
+            "hint": summary,
+            "max_samples_per_marker": self.max_samples_per_marker,
             "required_samples": self.required_samples,
             "reference_marker_id": self.reference_marker_id,
             "accepted_frame_count": self._accepted_frame_count,

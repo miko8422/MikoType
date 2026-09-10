@@ -28,6 +28,13 @@ const cameraUi = {
   scan: document.getElementById("camera-scan"),
   apply: document.getElementById("camera-apply"),
   message: document.getElementById("camera-message"),
+  preview: document.getElementById("camera-preview"),
+  mirror: document.getElementById("view-mirror"),
+  vertical: document.getElementById("view-vertical"),
+  viewApply: document.getElementById("view-apply"),
+  inputMirror: document.getElementById("input-mirror"),
+  inputVertical: document.getElementById("input-vertical"),
+  orientationApply: document.getElementById("orientation-apply"),
 };
 
 async function request(path, options = {}) {
@@ -59,7 +66,9 @@ function setBusy(nextBusy) {
 
 function syncCameraControls() {
   const blocked = busy || cameraBusy || !camera;
-  for (const control of [cameraUi.device, cameraUi.backend, cameraUi.index, cameraUi.scan, cameraUi.apply]) control.disabled = blocked;
+  for (const control of [cameraUi.device, cameraUi.backend, cameraUi.index, cameraUi.scan, cameraUi.apply,
+    cameraUi.mirror, cameraUi.vertical, cameraUi.viewApply, cameraUi.inputMirror,
+    cameraUi.inputVertical, cameraUi.orientationApply]) control.disabled = blocked;
   cameraUi.apply.textContent = camera?.current?.running ? "切换并保存摄像头" : "应用并打开 / 重试";
 }
 
@@ -72,11 +81,18 @@ function renderCamera(payload, updateChoices = false) {
   camera = payload;
   const current = payload.current || {};
   const running = Boolean(current.running);
+  cameraUi.preview.style.transform = `scale(${payload.view?.mirror_preview ? -1 : 1}, ${payload.view?.flip_vertical_preview ? -1 : 1})`;
+  cameraUi.preview.hidden = !running;
+  syncPreview();
   cameraUi.status.textContent = payload.busy ? "设备操作中" : running ? "摄像头运行中" : "摄像头未运行";
   cameraUi.status.className = `badge ${running && !payload.busy ? "ready" : "warning"}`;
   cameraUi.current.textContent = `当前设备：${current.name || `摄像头 ${current.device_index ?? "—"}`} · #${current.device_index ?? "—"} · ${current.backend || "—"}`;
   if (payload.calibration_warning) setText("camera-warning", `${payload.calibration_warning} 原有键盘文件不会自动删除。`);
   if (updateChoices) {
+    cameraUi.mirror.checked = Boolean(payload.view?.mirror_preview);
+    cameraUi.vertical.checked = Boolean(payload.view?.flip_vertical_preview);
+    cameraUi.inputMirror.checked = Boolean(current.mirror);
+    cameraUi.inputVertical.checked = Boolean(current.flip_vertical);
     cameraUi.device.replaceChildren();
     const devices = [...(Array.isArray(payload.devices) ? payload.devices : [])];
     if (Number.isInteger(current.device_index) && !devices.some(item => item.device_index === current.device_index && item.backend === current.backend)) {
@@ -108,6 +124,46 @@ function renderCamera(payload, updateChoices = false) {
   }
   syncCameraControls();
 }
+
+function syncPreview() {
+  if (camera?.current?.running && !document.hidden) {
+    if (!cameraUi.preview.getAttribute("src")) cameraUi.preview.src = "/stream.mjpg";
+  } else cameraUi.preview.removeAttribute("src");
+}
+
+async function applyDirection(inputCorrection) {
+  if (busy || cameraBusy) return;
+  if (dirty && !confirm("其他参数有未保存变更。应用方向会重新读取配置并放弃这些变更，继续？")) return;
+  if (inputCorrection && !confirm("改变算法输入会暂停旧映射，并需要重新注册 Anchor、验证键位校准。确认这是摄像头原始输入方向错误，而不是只想改变观看方向？")) return;
+  cameraBusy = true;
+  setBusy(true);
+  const payload = inputCorrection
+    ? { mirror: cameraUi.inputMirror.checked, flip_vertical: cameraUi.inputVertical.checked }
+    : { mirror_preview: cameraUi.mirror.checked, flip_vertical_preview: cameraUi.vertical.checked };
+  cameraMessage(inputCorrection ? "正在矫正输入，预览将短暂停顿…" : "正在保存预览方向…");
+  try {
+    renderCamera(await request(inputCorrection ? "/api/camera/orientation" : "/api/camera/view", {
+      method: "POST", body: JSON.stringify(payload),
+    }), true);
+    const [nextSettings, nextService] = await Promise.all([request("/api/settings"), request("/api/service")]);
+    renderSettings(nextSettings);
+    renderService(nextService);
+    cameraMessage(inputCorrection ? "输入已矫正。请到键盘设置重新验证 Anchor 和键位校准。" : "预览方向已保存并即时生效；已有键位校准保持不变。", "success");
+  } catch (error) {
+    try { renderCamera(await request("/api/camera"), true); } catch (_) { /* Keep original error. */ }
+    cameraMessage(`方向设置失败：${error.message}`, "error");
+  } finally {
+    cameraBusy = false;
+    setBusy(false);
+  }
+}
+
+cameraUi.viewApply.addEventListener("click", () => void applyDirection(false));
+cameraUi.orientationApply.addEventListener("click", () => void applyDirection(true));
+document.addEventListener("visibilitychange", () => {
+  syncPreview();
+  if (!document.hidden && !busy && !cameraBusy) void loadCamera();
+});
 
 async function loadCamera() {
   try {
@@ -330,7 +386,13 @@ function renderSettings(payload) {
     heading.append(eyebrow, title, description);
     const fields = document.createElement("div");
     fields.className = "fields";
-    for (const field of group.fields || []) fields.append(renderField(group.section, field));
+    for (const field of group.fields || []) {
+      // Direction has one live control surface, avoiding a second unsaved copy.
+      if ((group.section === "camera" && ["mirror", "flip_vertical"].includes(field.name))
+        || (group.section === "debug_ui" && ["mirror_preview", "flip_vertical_preview"].includes(field.name))) continue;
+      fields.append(renderField(group.section, field));
+    }
+    if (!fields.childElementCount) continue;
     section.append(heading, fields);
     ui.groups.append(section);
   }
@@ -435,6 +497,7 @@ ui.reset.addEventListener("click", () => {
 ui.reload.addEventListener("click", () => { if (!busy) void load(); });
 
 window.addEventListener("beforeunload", event => {
+  cameraUi.preview.removeAttribute("src");
   if (!dirty) return;
   event.preventDefault();
 });

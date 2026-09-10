@@ -13,7 +13,11 @@ class RouteContract:
 ROUTE_CONTRACTS = (
     RouteContract("GET", "/", "unified runtime inspector"),
     RouteContract("GET", "/settings", "allowlisted restart-safe settings page"),
-    RouteContract("GET", "/setup", "keyboard layout and calibration page"),
+    RouteContract("GET", "/setup", "read-only setup overview and guided calibration"),
+    RouteContract("GET", "/api/setup/status", "available active/staged progress without initializing staging"),
+    RouteContract("GET", "/api/camera", "current capture and display orientation"),
+    RouteContract("POST", "/api/camera/view", "live display-only horizontal/vertical flips"),
+    RouteContract("POST", "/api/camera/orientation", "correct capture pixels and require calibration revalidation"),
     RouteContract("GET", "/steamvr", "Windows SteamVR integration status and logs"),
     RouteContract("GET", "/api/steamvr/status", "bounded bridge/scene/runtime diagnostics"),
     RouteContract("PUT", "/api/steamvr/settings", "session-only manual VR-space alignment"),

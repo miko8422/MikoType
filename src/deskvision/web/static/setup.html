@@ -1,89 +1,43 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>MikoType · Keyboard Setup</title>
-    <link rel="stylesheet" href="/static/setup.css?v=0.1.0.dev3" />
-  </head>
-  <body>
-    <header>
-      <div>
-        <p class="eyebrow">PRODUCTION SETUP MODE</p>
-        <h1>键盘布局与触点校准</h1>
-        <p>设置过程写入 staging；点击“应用生产 Bundle”后才会替换运行产物，并要求重启实时服务。</p>
-      </div>
-    </header>
-
-    <nav class="site-nav" aria-label="MikoType 控制台">
-      <a href="/">运行状态</a>
-      <a href="/settings">参数设置</a>
-      <a href="/setup" class="active" aria-current="page">键盘定位与校准</a>
-      <a href="/steamvr">SteamVR 观测</a>
-    </nav>
-
-    <nav class="setup-tabs" aria-label="键盘校准步骤">
-      <button class="tab active" data-panel="layout-panel">1 · 键位布局</button>
-      <button class="tab" data-panel="calibration-panel">2 · Marker 与触点</button>
-    </nav>
-
-    <main>
-      <section id="layout-panel" class="panel active">
-        <div class="card board-card">
-          <div class="card-title"><h2>用户键位图</h2><span id="layout-revision" class="mono">—</span></div>
-          <svg id="keyboard-svg" aria-label="可编辑键盘布局"></svg>
-          <p class="hint">拖动键帽调整位置；键位清单和校准顺序保持不变。</p>
-        </div>
-        <aside class="card editor-card">
-          <h2 id="selected-title">请选择键位</h2>
-          <p id="selected-id" class="mono">—</p>
-          <div class="field-grid">
-            <label>X <input id="x-input" type="number" step="0.01" /></label>
-            <label>Y <input id="y-input" type="number" step="0.01" /></label>
-            <label>W <input id="w-input" type="number" step="0.01" min="0.1" /></label>
-            <label>H <input id="h-input" type="number" step="0.01" min="0.1" /></label>
-          </div>
-          <div class="button-row"><button id="save-layout" class="primary">保存 staging Layout</button></div>
-          <p id="layout-message" class="message"></p>
-        </aside>
-      </section>
-
-      <section id="calibration-panel" class="panel">
-        <div class="card camera-card">
-          <div class="card-title"><h2>同帧校准画面</h2><span id="calibration-status">等待开始</span></div>
-          <div id="setup-viewport" class="viewport"><img src="/stream.mjpg" alt="Calibration camera" /></div>
-          <p class="hint">画面仅用于观察。触点保存使用严格同帧的原始帧、手部结果和 Marker pose。</p>
-        </div>
-        <div class="card actions-card">
-          <h2>Anchor Reference</h2>
-          <div class="button-row">
-            <button id="start-anchor">开始/继续注册</button>
-            <button id="reset-anchor">重新注册</button>
-            <button id="finalize-anchor" class="primary">锁定 Anchor</button>
-          </div>
-          <div id="anchor-progress" class="progress-list"></div>
-          <h3>DICT_4X4_50 定位块</h3>
-          <div id="markers" class="markers"></div>
-
-          <hr />
-          <h2>每键五次右食指触点</h2>
-          <div class="contact-current">
-            <strong id="current-key">—</strong>
-            <span id="contact-progress">尚未开始</span>
-          </div>
-          <div class="button-row">
-            <button id="start-contact">开始/恢复</button>
-            <button id="capture-contact" class="primary">3 秒后采样</button>
-            <button id="undo-contact">撤销一次</button>
-          </div>
-          <div class="button-row">
-            <button id="reset-contact" class="danger">重置触点草稿</button>
-            <button id="apply-bundle" class="apply">应用生产 Bundle</button>
-          </div>
-          <p id="setup-message" class="message"></p>
-        </div>
-      </section>
-    </main>
-    <script src="/static/setup.js?v=0.1.0.dev3"></script>
-  </body>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>MikoType · 基础设置</title>
+  <link rel="stylesheet" href="/static/setup.css?v=0.1.0.dev5" />
+</head>
+<body>
+  <header><div><p class="eyebrow">MIKOTYPE / GETTING STARTED</p><h1>基础设置</h1><p>先查看已经保存的设置。需要调整时，再跟随教程完成摄像头、键位图和触点校准。</p></div><button id="begin-tutorial" class="primary">开始教程 →</button></header>
+  <nav class="site-nav" aria-label="MikoType 控制台"><a href="/">实时追踪</a><a href="/settings">高级参数</a><a href="/setup" class="active" aria-current="page">基础设置与教程</a><a href="/steamvr">SteamVR 观测</a></nav>
+  <main>
+    <section id="overview-panel" class="panel active overview-panel">
+      <div class="card overview-heading"><div><h2>你的设置总览</h2><p class="hint">只展示服务实际读取的配置与文件。已保存不代表已通过实物精度验收。</p></div><button id="refresh-overview">刷新状态</button></div>
+      <div id="overview-cards" class="overview-grid" aria-live="polite"><p class="hint">正在读取设置…</p></div>
+      <div id="overview-warnings" class="notice" hidden></div>
+      <details class="card advanced"><summary>按模块调整 · 高级入口</summary><p class="hint">进入页面不会开始采样、重新注册或改写文件。每项修改都需要你主动操作。</p><div class="button-row"><button data-open-step="camera">摄像头画面</button><button data-open-step="layout">编辑键位图</button><button data-open-step="anchor">Marker 注册</button><button data-open-step="contact">触点采样</button><button data-open-step="apply">应用与重启</button><a href="/settings">设备与输入方向矫正 ↗</a></div></details>
+    </section>
+    <section id="tutorial-shell" hidden>
+      <div class="guide-heading"><button id="return-overview">← 设置总览</button><p id="guide-position" class="eyebrow"></p></div>
+      <ol id="guide-steps" class="guide-steps" aria-label="设置教程顺序"></ol>
+      <div class="guide-intro"><h2 id="guide-title"></h2><p id="guide-description"></p></div>
+    </section>
+    <section id="layout-panel" class="panel">
+      <div class="card board-card"><div class="card-title"><h2>用户键位图</h2><span id="layout-revision" class="mono">—</span></div><svg id="keyboard-svg" aria-label="可编辑键盘布局"></svg><p class="hint">拖动键帽调整位置，或选中后修改尺寸。只查看或跳过不会保存。</p></div>
+      <aside class="card editor-card"><h2 id="selected-title">请选择键位</h2><p id="selected-id" class="mono">—</p><div class="field-grid"><label>X <input id="x-input" type="number" step="0.01" /></label><label>Y <input id="y-input" type="number" step="0.01" /></label><label>W <input id="w-input" type="number" step="0.01" min="0.1" /></label><label>H <input id="h-input" type="number" step="0.01" min="0.1" /></label></div><div class="button-row"><button id="save-layout" class="primary">保存键位图草稿</button></div><p id="layout-message" class="message"></p><p class="hint">保存到隔离的 staging，不立即替换运行中的键盘。改过键位后，需重新验证 Anchor 与触点。</p></aside>
+    </section>
+    <section id="calibration-panel" class="panel">
+      <div class="card camera-card"><div class="card-title"><h2>摄像头画面</h2><span id="calibration-status">等待读取</span></div><div id="setup-viewport" class="viewport"><img alt="摄像头实时预览" /></div><p class="hint">画面仅用于观察。触点保存使用同一帧的原始视频、手部结果和 Marker 定位。</p></div>
+      <aside class="card actions-card">
+        <div id="camera-actions"><h2>1 · 先把画面摆正</h2><p id="camera-summary" class="hint">正在读取摄像头状态…</p><div class="check-fields"><label><input id="preview-mirror" type="checkbox" /> 水平镜像预览</label><label><input id="preview-flip-vertical" type="checkbox" /> 垂直翻转预览</label></div><p class="hint">只改变你看到的预览方向，不改算法坐标、不使校准失效。设置会保存，并同步到其他 WebUI。</p><a class="action-link" href="/settings" target="_blank" rel="noopener">选择摄像头 / 输入方向高级矫正 ↗</a><p class="hint">若模型检测本身方向有误，请在高级设置矫正输入；它可能要求重新校准。</p></div>
+        <div id="anchor-actions" hidden><h2>用 Marker 建立键盘参考坐标</h2><p class="hint">把定位块放在对应键帽上，保持键盘和相机不动。观察数达到要求后，还需要位置稳定，才能锁定。</p><div class="button-row"><button id="start-anchor">开始 / 继续观察</button><button id="reset-anchor" class="danger">重新注册</button><button id="finalize-anchor" class="primary">锁定 Anchor</button></div><p id="anchor-explanation" class="notice">正在读取 Anchor 状态…</p><div id="anchor-progress" class="progress-list"></div><h3>DICT_4X4_50 定位块 · 点击下载</h3><div id="markers" class="markers"></div></div>
+        <div id="contact-actions" hidden><h2>每键五次右食指触点</h2><p class="hint">把右食指放在指定键帽中央。点击采样后等待 3 秒；每次抬起再放下，重复五次。完成一个键后自动提示下一个。</p><div class="contact-current"><strong id="current-key">—</strong><span id="contact-progress">尚未读取</span></div><div class="button-row"><button id="start-contact">开始 / 恢复采样</button><button id="capture-contact" class="primary">3 秒后采样</button><button id="undo-contact">撤销一次</button></div><div class="button-row"><button id="reset-contact" class="danger">重置触点草稿</button></div><p class="hint">已有完整触点可以直接沿用。进入本页或跳过不会启动新会话。</p></div>
+      </aside>
+    </section>
+    <section id="apply-panel" class="panel single-panel"><div class="card"><h2>应用校准，再重启实时服务</h2><p id="apply-summary" class="notice">正在读取实际文件状态…</p><p>教程中的修改首先保存在 staging。只有点击下方按钮，才会替换实际运行使用的键盘文件并生成 3D 模型。</p><div class="button-row"><button id="apply-bundle" class="apply">应用已完成的校准</button></div><p class="hint">应用后，请回到启动服务的终端，停止并重新启动相同配置。页面不会自动重启或关闭其他软件。</p></div></section>
+    <section id="inspect-panel" class="panel single-panel"><div class="card"><h2>检查实际效果</h2><p id="inspect-summary" class="notice"></p><ol class="checklist"><li>在运行状态页确认摄像头、手部追踪与 Marker 均可用。</li><li>用不同手指依次指向几个键，检查键位高亮与 3D 键盘是否对应。</li><li>移动键盘后，检查 Marker 重新定位效果。这一步需你实际观察，系统不会自动标记验收通过。</li></ol><div class="button-row"><a class="action-link" href="/" target="_blank" rel="noopener">打开运行状态与映射测试 ↗</a><a class="action-link" href="/steamvr" target="_blank" rel="noopener">Windows · SteamVR 观测 ↗</a></div></div></section>
+    <p id="setup-message" class="message" role="status" aria-live="polite"></p>
+    <footer id="guide-controls" class="guide-controls" hidden><div><button id="guide-back">← 上一步</button><button id="guide-skip">沿用已保存设置，跳过此步</button></div><div><p id="guide-gate" class="hint"></p><button id="guide-next" class="primary">下一步 →</button></div></footer>
+  </main>
+  <script src="/static/setup.js?v=0.1.0.dev5"></script>
+</body>
 </html>

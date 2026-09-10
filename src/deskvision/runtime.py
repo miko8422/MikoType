@@ -264,6 +264,10 @@ class DeskVisionRuntime:
         self._status = "waiting_for_camera"
         configure(camera)
         self.config = replace(self.config, camera=camera)
+        self.pipeline.key_mapper.config = replace(
+            self.pipeline.key_mapper.config,
+            source_coordinates_mirrored=camera.mirror ^ camera.flip_vertical,
+        )
         reset_hand = getattr(self.pipeline.hand_tracker, "reset", None)
         if callable(reset_hand):
             reset_hand()
@@ -383,9 +387,9 @@ def build_runtime(
                 min_pose_confidence=config.keyboard_tracking.min_pose_confidence,
                 direct_spatial_weight=config.keyboard_tracking.direct_weight,
                 direct_probability=config.interaction.direct_min_intensity,
-                # OpenCVCameraSource deliberately preserves raw sensor
-                # orientation. Browser preview mirroring is a separate view.
-                source_coordinates_mirrored=False,
+                # Only actual pixel reflections alter handedness parity.
+                # Browser preview direction is always a separate view concern.
+                source_coordinates_mirrored=config.camera.mirror ^ config.camera.flip_vertical,
             ),
         )
         model_state = KeyboardModelState(
@@ -444,6 +448,7 @@ def build_runtime(
             service_host=config.app.host,
             service_port=config.app.port,
             mirror_preview=config.debug_ui.mirror_preview,
+            flip_vertical_preview=config.debug_ui.flip_vertical_preview,
             max_preview_fps=config.stream.max_preview_fps,
             expose_model_download=config.debug_ui.expose_model_download,
             bundle_stale_after_ms=config.diagnostics.stale_frame_threshold_ms,

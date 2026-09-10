@@ -116,3 +116,42 @@ def test_source_epoch_change_resets_collected_registration() -> None:
     progress = accumulator.snapshot()
     assert progress["accepted_frame_count"] == 1
     assert progress["last_reset_reason"] == "source_epoch_changed"
+
+
+def test_many_samples_show_bounded_progress_but_unstable_reason() -> None:
+    accumulator = AnchorRegistrationAccumulator(MARKER_KEYS)
+    for frame_id in range(60):
+        observations = dict(REGISTRATION)
+        # Large alternating target motion remains an inlier distribution; this
+        # reproduces the screenshot's 48/5 counter with non-ready gray rows.
+        offset = 15 if frame_id % 2 else -15
+        observations[1] = tuple((x + offset, y) for x, y in REGISTRATION[1])
+        accumulator.observe(observations, source_id="camera", frame_id=frame_id, timestamp_ms=frame_id * 10)
+    progress = accumulator.snapshot()
+    marker = next(item for item in progress["markers"] if item["marker_id"] == 1)
+    assert marker["sample_count"] == 48
+    assert marker["completion_count"] == marker["required_samples"] == 5
+    assert marker["remaining_samples"] == 0
+    assert marker["stable"] is False
+    assert marker["status"] == "unstable"
+    assert marker["ready"] is False
+    assert marker["hint"]
+    assert progress["reason"] == "marker_samples_unstable"
+    assert progress["ready"] is False
+    with pytest.raises(ValueError, match="not ready"):
+        accumulator.build_reference()
+
+
+def test_snapshot_rechecks_geometry_and_does_not_latch_old_ready() -> None:
+    accumulator = AnchorRegistrationAccumulator(MARKER_KEYS, required_samples=2, max_samples_per_marker=4)
+    for frame_id in range(2):
+        accumulator.observe(REGISTRATION, source_id="camera", frame_id=frame_id, timestamp_ms=frame_id)
+    assert accumulator.ready
+    for frame_id in range(2, 10):
+        observations = dict(REGISTRATION)
+        observations[3] = REGISTRATION[2]  # Individually stable but overlapping.
+        accumulator.observe(observations, source_id="camera", frame_id=frame_id, timestamp_ms=frame_id)
+    assert accumulator.snapshot()["reason"] == "overlapping_marker_centers"
+    assert not accumulator.ready
+    with pytest.raises(ValueError, match="not ready"):
+        accumulator.build_reference()

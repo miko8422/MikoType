@@ -1,7 +1,7 @@
 # Local Production Control Console (Mac and Windows)
 
 The production runtime exposes one local FastAPI control plane on one loopback
-port. Its three browser pages have different authority but share the same
+port. Its four browser pages have different authority but share the same
 camera, perception worker, exact-frame stores, and immutable live artifacts.
 
 The current workflow validates this shared production pipeline on macOS using
@@ -84,6 +84,43 @@ state or read camera bundles. Cross-site subresources are rejected and camera
 responses opt into same-origin resource protection. The setup workspace is
 initialized lazily and cannot overlap production artifacts, so an unavailable
 or mistaken staging path cannot damage the active keyboard bundle.
+
+## Guided setup and camera orientation (0.1.0.dev5)
+
+`/setup` opens a read-only overview by default. Tutorial order is camera,
+layout, Anchor, contacts, apply/restart, then inspect. Existing valid steps can
+be reused; layout has an explicit skip button. Navigation never starts a new
+registration or contact session and never saves layout geometry. Missing
+artifact information is omitted; available progress is refreshed from the
+backend, not a browser-local completion flag.
+
+- `GET /api/setup/status` returns available active/staged artifact summaries,
+  validated revisions, saved contact counts, registration readiness, warnings,
+  and step availability. It never initializes a staging workspace.
+- `GET /api/setup/layout` reads staging if present, otherwise active, without
+  copying files. Actual save/start operations initialize staging explicitly.
+- `POST /api/camera/view` accepts exactly `mirror_preview` and
+  `flip_vertical_preview` booleans. It atomically saves the view and updates
+  video/overlay transforms across pages; it does not restart capture.
+- `POST /api/camera/orientation` accepts exactly `mirror` and `flip_vertical`
+  booleans. It reconfigures capture pixels before both recognition modules.
+  The existing camera-change transaction blocks stale contact sampling and
+  runtime mapping. After new anchors/contacts are applied, restart loads the
+  new bundle; an in-memory old mapper remains blocked until then.
+
+Primary controls are display-only. Advanced input controls have an explicit
+calibration warning. No flip is a claim about automatic hardware-mirror
+detection, and no setting proves that the physical camera remained stationary.
+The worker's calibration guard reads a cached value without a setup lock or
+disk I/O, so a camera transaction can safely join the processing worker.
+
+Anchor `sample_count` remains the rolling inlier count for compatibility.
+`completion_count` is bounded by `required_samples`; stability/geometry and
+lock reasons are separate fields. Frontend shows each separately rather than
+displaying an unbounded count as a five-step task. Polling remains single-flight
+and stops when the relevant step/page is hidden; delayed captures are cancelled
+when leaving calibration. Regression tests use fake cameras and isolated files,
+not the user's live calibration.
 
 Production artifact responses are immutable snapshots owned by the running
 process. Applying a new bundle changes disk state but cannot mix a new GLB with

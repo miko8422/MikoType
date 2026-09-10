@@ -153,6 +153,44 @@ def test_pipeline_fails_closed_when_pose_is_unusable() -> None:
     assert state.diagnostics.status == "degraded"
 
 
+def test_camera_calibration_guard_keeps_raw_hands_but_suppresses_old_mapping():
+    frame = _frame()
+    pipeline = _pipeline(frame)
+    pipeline.mapping_guard = lambda: "camera input changed; recalibrate and restart"
+    state = pipeline.process(frame)
+    assert state.hands
+    assert state.key_highlights == ()
+    assert state.fingertips == ()
+    assert not state.keyboard.pose.usable
+    assert state.keyboard.pose.status == "calibration_required"
+    assert state.diagnostics.status == "calibration_required"
+    assert "camera input changed" in state.diagnostics.error
+
+
+def test_camera_guard_rechecks_before_publishing_late_inference_result():
+    frame = _frame()
+    pipeline = _pipeline(frame)
+    reasons = iter((None, "camera changed during inference"))
+    pipeline.mapping_guard = lambda: next(reasons)
+    state = pipeline.process(frame)
+    assert state.hands
+    assert not state.keyboard.pose.usable
+    assert state.key_highlights == ()
+    assert state.fingertips == ()
+
+
+def test_camera_guard_failure_never_exposes_old_keys():
+    frame = _frame()
+    pipeline = _pipeline(frame)
+    def unavailable():
+        raise RuntimeError("guard error")
+    pipeline.mapping_guard = unavailable
+    state = pipeline.process(frame)
+    assert state.hands
+    assert state.diagnostics.status == "calibration_required"
+    assert state.key_highlights == ()
+
+
 def test_pipeline_does_not_commit_wrong_frame_hand_result() -> None:
     frame = _frame()
     pipeline = _pipeline(frame)

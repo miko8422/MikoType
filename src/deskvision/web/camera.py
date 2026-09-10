@@ -29,6 +29,8 @@ class CameraController:
     status: Callable[[], Mapping[str, object]]
     scan: Callable[[], Mapping[str, object]]
     apply: Callable[[int, str], Mapping[str, object]]
+    apply_view: Callable[[bool, bool], Mapping[str, object]] | None = None
+    apply_orientation: Callable[[bool, bool], Mapping[str, object]] | None = None
     _action_lock: Lock = field(default_factory=Lock, init=False, repr=False)
 
     def _state(self, result: Mapping[str, object]) -> dict[str, object]:
@@ -64,6 +66,19 @@ class CameraController:
             raise ValueError("camera backend must be any, avfoundation, msmf, or dshow")
         return self._mutate(lambda: self.apply(index, backend))
 
+    def set_view(self, payload: Mapping[str, object]) -> dict[str, object]:
+        return self._set_flags(payload, ("mirror_preview", "flip_vertical_preview"), self.apply_view)
+
+    def set_orientation(self, payload: Mapping[str, object]) -> dict[str, object]:
+        return self._set_flags(payload, ("mirror", "flip_vertical"), self.apply_orientation)
+
+    def _set_flags(self, payload, names, callback) -> dict[str, object]:
+        if set(payload) != set(names) or any(not isinstance(payload[name], bool) for name in names):
+            raise ValueError(f"camera options require exactly two boolean fields: {', '.join(names)}")
+        if callback is None:
+            raise RuntimeError("camera orientation controls are unavailable in this runtime")
+        return self._mutate(lambda: callback(*(payload[name] for name in names)))
+
 
 def create_camera_router(controller: CameraController) -> APIRouter:
     router = APIRouter()
@@ -89,6 +104,14 @@ def create_camera_router(controller: CameraController) -> APIRouter:
     @router.post("/api/camera/select")
     def select_camera(payload: Mapping[str, object]):
         return run(lambda: controller.select(payload))
+
+    @router.post("/api/camera/view")
+    def set_camera_view(payload: Mapping[str, object]):
+        return run(lambda: controller.set_view(payload))
+
+    @router.post("/api/camera/orientation")
+    def set_camera_orientation(payload: Mapping[str, object]):
+        return run(lambda: controller.set_orientation(payload))
 
     return router
 

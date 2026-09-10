@@ -46,6 +46,7 @@ class CameraConfig:
     fps: int = 30
     rotate_degrees: int = 0
     mirror: bool = False
+    flip_vertical: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.source_id, str) or not self.source_id.strip():
@@ -64,6 +65,9 @@ class CameraConfig:
             raise ValueError("camera fps must be positive")
         if self.rotate_degrees not in {0, 90, 180, 270}:
             raise ValueError("camera rotate_degrees must be 0, 90, 180, or 270")
+        for name in ("mirror", "flip_vertical"):
+            if not isinstance(getattr(self, name), bool):
+                raise TypeError(f"camera.{name} must be boolean")
 
 
 @dataclass(frozen=True, slots=True)
@@ -219,11 +223,12 @@ class PipelineConfig:
 class DebugUIConfig:
     enabled: bool = True
     mirror_preview: bool = True
+    flip_vertical_preview: bool = False
     websocket_state: bool = True
     expose_model_download: bool = True
 
     def __post_init__(self) -> None:
-        for name in ("enabled", "mirror_preview", "websocket_state", "expose_model_download"):
+        for name in ("enabled", "mirror_preview", "flip_vertical_preview", "websocket_state", "expose_model_download"):
             if not isinstance(getattr(self, name), bool):
                 raise TypeError(f"debug_ui.{name} must be boolean")
 

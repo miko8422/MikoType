@@ -46,6 +46,7 @@ class DebugWebContext:
     service_host: str = "127.0.0.1"
     service_port: int = 9000
     mirror_preview: bool = True
+    flip_vertical_preview: bool = False
     max_preview_fps: int = 30
     expose_model_download: bool = True
     bundle_stale_after_ms: int = 1000
@@ -206,9 +207,13 @@ def create_debug_app(context: DebugWebContext) -> FastAPI:
 
     @app.get("/api/config")
     def config() -> dict[str, object]:
+        view = getattr(app.state, "camera_view", None) or {
+            "mirror_preview": context.mirror_preview,
+            "flip_vertical_preview": context.flip_vertical_preview,
+        }
         return {
             "schema_version": "deskvision-debug-config-0.1",
-            "mirror_preview": context.mirror_preview,
+            **view,
             "max_preview_fps": context.max_preview_fps,
             "key_semantics": "likely-contact-not-mechanical-keypress",
             "model_download_enabled": context.expose_model_download,

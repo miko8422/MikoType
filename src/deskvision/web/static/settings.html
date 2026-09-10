@@ -4,13 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>MikoType · Settings</title>
-    <link rel="stylesheet" href="/static/settings.css?v=0.1.0.dev3" />
+    <link rel="stylesheet" href="/static/settings.css?v=0.1.0.dev5" />
   </head>
   <body>
     <header>
       <div>
         <p class="eyebrow">MIKOTYPE · LOCAL CONTROL CONSOLE</p>
-        <h1>运行参数</h1>
+        <h1>高级运行参数</h1>
         <p class="subtitle">配置本机视频、手部追踪和键盘映射。摄像头可单独即时切换；其他参数保存后重启生效。</p>
       </div>
       <div class="status-cluster">
@@ -20,9 +20,9 @@
     </header>
 
     <nav class="site-nav" aria-label="MikoType 控制台">
-      <a href="/">运行状态</a>
-      <a href="/settings" class="active" aria-current="page">参数设置</a>
-      <a href="/setup">键盘定位与校准</a>
+      <a href="/">实时追踪</a>
+      <a href="/settings" class="active" aria-current="page">高级参数</a>
+      <a href="/setup">基础设置与教程</a>
       <a href="/steamvr">SteamVR 观测</a>
     </nav>
 
@@ -103,6 +103,23 @@
         </div>
         <p id="camera-warning" class="notice">切换摄像头或移动相机后，请重新检查 Marker reference 和键位校准；原有键盘文件不会自动删除。</p>
         <p id="camera-message" class="message" role="status"></p>
+        <div class="orientation-preview"><img id="camera-preview" alt="摄像头方向预览" hidden /></div>
+        <h3>预览方向 · 即时生效</h3>
+        <p class="group-description">只调整浏览器画面和指尖叠加，保留已有键盘校准。左右镜像适合自拍观察；上下翻转可按你的观看方向调整。</p>
+        <div class="orientation-options">
+          <label><input id="view-mirror" type="checkbox" disabled />左右镜像</label>
+          <label><input id="view-vertical" type="checkbox" disabled />上下翻转</label>
+          <button id="view-apply" type="button" class="secondary" disabled>应用并保存预览方向</button>
+        </div>
+        <details class="orientation-advanced">
+          <summary>高级：矫正摄像头输入（会影响校准）</summary>
+          <p class="notice">仅当摄像头驱动实际送出的原始画面方向错误时使用。会一起改变 ArUco、手部追踪和视频流输入，并暂停旧映射，需要重新注册 Anchor、验证键位校准。单轴翻转正常的 Marker 会导致解码失败；普通镜子效果请用上方预览方向。</p>
+          <div class="orientation-options">
+            <label><input id="input-mirror" type="checkbox" disabled />输入左右矫正</label>
+            <label><input id="input-vertical" type="checkbox" disabled />输入上下矫正</label>
+            <button id="orientation-apply" type="button" class="danger" disabled>矫正输入并重新验证校准</button>
+          </div>
+        </details>
       </section>
 
       <form id="settings-form" novalidate>
@@ -135,6 +152,6 @@
       <span>loopback only</span>
       <span>保存与运行状态明确分离</span>
     </footer>
-    <script src="/static/settings.js?v=0.1.0.dev3"></script>
+    <script src="/static/settings.js?v=0.1.0.dev5"></script>
   </body>
 </html>

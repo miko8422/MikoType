@@ -22,6 +22,32 @@ uv run --locked --extra test pytest -q tests/web
 In an activated Conda environment installed with the root README's test extra,
 run `pytest -q tests/web` directly.
 
+## Guided setup and orientation regression (0.1.0.dev5)
+
+The setup frontend harness executes the production JavaScript with a fake DOM:
+it covers saved-layout skip without mutations, backend-derived completion,
+numeric W/H editing, and preview/countdown cancellation. Anchor presentation
+separates bounded completion from rolling sample counts and unstable positions.
+Camera tests cover exact-boolean input validation, all four horizontal/vertical
+pixel combinations, display-only flips that preserve calibration, and failed
+camera changes that retain a safe runtime identity. The runtime pipeline tests
+verify that a calibration guard blocks old mapped fingertips/highlights while
+raw hands remain visible. Calibration tests additionally cover read-only status,
+persisted drafts, layout reuse across changed timestamps, damaged/missing camera
+baselines, and input changes across restart.
+
+Manual acceptance on Windows should open the actual service's `/setup`, review
+the saved keyboard summary, start the tutorial, try both preview flips, skip an
+already-correct layout, and verify the Anchor stability hints against physical
+markers. Actual input correction requires recalibration and restart; preview
+flips do not. These synthetic tests do not establish Windows camera accuracy.
+
+Verified on macOS on 2026-09-10: the full hardware-free suite passed **679 tests**
+(2 hardware/long-running cases deselected; 2 existing dependency deprecation
+warnings). The 11 setup JavaScript tests ran with Node.js. A temporary isolated
+HTTP server and headless-browser rendering checked the actual overview with a
+copied 82-key sample (410 saved contacts), not the user's live keyboard data.
+
 ## Mac-first non-VR validation
 
 The production console is also exercised with `configs/macos.yaml`; this is

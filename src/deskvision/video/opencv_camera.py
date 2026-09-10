@@ -38,8 +38,9 @@ class OpenCVCameraSource:
     ``any`` lets OpenCV select the backend; ``msmf`` and ``dshow`` are exposed
     for Windows hardware tuning, and ``avfoundation`` supports macOS.
     Test seams keep unit tests hardware-free.
-    Rotation and mirroring remain preprocessing/view concerns so algorithm
-    coordinates are never changed silently.
+    Explicit input reflections are applied once before publishing a FramePacket,
+    so preview encoding, ArUco and hand tracking consume identical pixels.
+    Browser-only view flips do not enter this source or change calibration.
     """
 
     _BACKEND_FLAGS = {
@@ -182,6 +183,12 @@ class OpenCVCameraSource:
             message = "camera returned an image without a 3-dimensional BGR shape"
             self._set_error(message)
             raise CameraReadError(message)
+        if self.config.mirror or self.config.flip_vertical:
+            # Copy negative-stride views: native OpenCV/MediaPipe consumers
+            # require a contiguous image and must never observe a mutated input.
+            vertical = -1 if self.config.flip_vertical else 1
+            horizontal = -1 if self.config.mirror else 1
+            image = image[::vertical, ::horizontal, :].copy()
         height, width = int(shape[0]), int(shape[1])
         try:
             frame = FramePacket(

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import time
 from typing import Callable, Protocol, Sequence
 
@@ -61,6 +61,7 @@ class ProductionMappingPipeline:
         config: MappingPipelineConfig | None = None,
         clock_ns: Callable[[], int] = time.time_ns,
         monotonic_ns: Callable[[], int] = time.monotonic_ns,
+        mapping_guard: Callable[[], str | None] | None = None,
     ) -> None:
         self.hand_tracker = hand_tracker
         self.keyboard_locator = keyboard_locator
@@ -71,7 +72,18 @@ class ProductionMappingPipeline:
         self.config = config or MappingPipelineConfig()
         self.clock_ns = clock_ns
         self.monotonic_ns = monotonic_ns
+        # This callback reads a cached camera/calibration gate only. It must not
+        # acquire the setup lock (camera changes join this worker under it).
+        self.mapping_guard = mapping_guard
         self._closed = False
+
+    def _mapping_block_reason(self) -> str | None:
+        if self.mapping_guard is None:
+            return None
+        try:
+            return self.mapping_guard()
+        except Exception:
+            return "calibration guard unavailable; keyboard mapping disabled"
 
     def process(self, frame: FramePacket) -> SceneState:
         if self._closed:
@@ -99,7 +111,10 @@ class ProductionMappingPipeline:
         except Exception as exc:
             errors.append(f"keyboard:{type(exc).__name__}:{exc}")
 
-        if hand_result is not None and pose is not None and pose.usable:
+        mapping_block = self._mapping_block_reason()
+        if mapping_block:
+            errors.append(f"mapping:calibration_required:{mapping_block}")
+        elif hand_result is not None and pose is not None and pose.usable:
             try:
                 mapped_candidates = self.key_mapper.map(frame, hand_result, pose)
                 self._validate_identity(frame, mapped_candidates)
@@ -118,9 +133,16 @@ class ProductionMappingPipeline:
             self.monotonic_ns() - keyboard_started_ns
         ) / 1_000_000.0
 
+        # A camera change can begin while this frame is in inference. Recheck
+        # before publishing so a late old-calibration result fails closed.
+        mapping_block = mapping_block or self._mapping_block_reason()
+        if mapping_block:
+            candidates = None
         fingertips = self._fingertip_states(candidates)
         highlights = self._highlight_states(candidates)
         pose_state = self._pose_state(pose)
+        if mapping_block:
+            pose_state = replace(pose_state, status="calibration_required", usable=False, confidence=0.0)
         keyboard = KeyboardState(
             coordinate_space="aruco-anchor-reference-2d",
             pose=pose_state,
@@ -130,7 +152,11 @@ class ProductionMappingPipeline:
         capture = self.capture_metrics() if self.capture_metrics is not None else None
         frame_age_ms = max(0.0, (self.clock_ns() - frame.acquired_at_ns) / 1_000_000.0)
         status = "ready"
-        if errors:
+        if mapping_block:
+            status = "calibration_required"
+            if not any("mapping:calibration_required:" in error for error in errors):
+                errors.append(f"mapping:calibration_required:{mapping_block}")
+        elif errors:
             status = "degraded"
         elif not pose_state.usable:
             status = "keyboard_unavailable"

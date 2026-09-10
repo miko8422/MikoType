@@ -163,6 +163,8 @@ SETTING_GROUPS = (
             _field("camera", "width", "请求宽度", "摄像头可能选择最接近的支持值。", "integer", minimum=160, maximum=7680, step=1),
             _field("camera", "height", "请求高度", "摄像头可能选择最接近的支持值。", "integer", minimum=120, maximum=4320, step=1),
             _field("camera", "fps", "请求帧率", "实际帧率仍取决于摄像头和后端。", "integer", minimum=1, maximum=240, step=1),
+            _field("camera", "mirror", "输入左右矫正", "高级：改变算法输入；现有校准需重新验证。正常自拍显示请用上方预览方向。", "boolean"),
+            _field("camera", "flip_vertical", "输入上下矫正", "高级：改变算法输入；仅用于修正摄像头送出的倒置画面。", "boolean"),
         ),
     ),
     SettingGroup(
@@ -223,6 +225,7 @@ SETTING_GROUPS = (
         "只改变浏览器预览方向，不改变算法坐标。",
         (
             _field("debug_ui", "mirror_preview", "镜像预览", "让画面看起来像镜子。", "boolean"),
+            _field("debug_ui", "flip_vertical_preview", "上下翻转预览", "只翻转画面和指尖叠加，不改算法输入或已有键位校准。", "boolean"),
         ),
     ),
     SettingGroup(
@@ -456,15 +459,32 @@ class RuntimeSettingsController:
         )
         return self.settings_state()
 
-    def accept_active_camera(self, device_index: int, backend: str) -> None:
+    def accept_active_camera(self, device_index: int, backend: str, *,
+                             mirror: bool | None = None, flip_vertical: bool | None = None) -> None:
         """Acknowledge only a camera pair already switched and saved by runtime."""
         with self._lock:
             camera = replace(self.active_config.camera, device_index=device_index, backend=backend)
+            if mirror is not None:
+                camera = replace(camera, mirror=mirror)
+            if flip_vertical is not None:
+                camera = replace(camera, flip_vertical=flip_vertical)
             self.active_config = replace(self.active_config, camera=camera)
             self.config_revision = configuration_revision(self.active_config)
             configured = self._configured_config or self.active_config
             self._restart_required = (
                 configuration_revision(configured) != self.config_revision
+            )
+
+    def accept_active_view(self, mirror_preview: bool, flip_vertical_preview: bool) -> None:
+        """Acknowledge live display flags, preserving pending unrelated changes."""
+        with self._lock:
+            view = replace(self.active_config.debug_ui, mirror_preview=mirror_preview,
+                           flip_vertical_preview=flip_vertical_preview)
+            self.active_config = replace(self.active_config, debug_ui=view)
+            self.config_revision = configuration_revision(self.active_config)
+            self._restart_required = (
+                configuration_revision(self._configured_config or self.active_config)
+                != self.config_revision
             )
 
     def reset(self) -> dict[str, object]:
