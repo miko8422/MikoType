@@ -2,7 +2,8 @@
 param(
     [Parameter(Mandatory = $true)][string]$OpenVrSdkRoot,
     [Parameter(Mandatory = $true)][string]$AssetDirectory,
-    [ValidateSet("Debug", "Release")][string]$Configuration = "Release"
+    [ValidateSet("Debug", "Release")][string]$Configuration = "Release",
+    [string]$Generator = "Visual Studio 17 2022"
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -18,7 +19,7 @@ $null = Read-MikoTypeAssetManifest $assetRoot
 if (-not (Get-Command cmake -ErrorAction SilentlyContinue)) { throw "Install CMake 3.21+ and Visual Studio 2022 Desktop development with C++." }
 $buildRoot = Join-Path $sourceRoot ".build"
 $bundleRoot = Join-Path $sourceRoot "dist"
-& cmake -S $sourceRoot -B $buildRoot -G "Visual Studio 17 2022" -A x64 "-DOPENVR_SDK_ROOT=$sdkRoot" "-DMIKOTYPE_ASSET_ROOT=$assetRoot"
+& cmake -S $sourceRoot -B $buildRoot -G $Generator -A x64 "-DOPENVR_SDK_ROOT=$sdkRoot" "-DMIKOTYPE_ASSET_ROOT=$assetRoot"
 if ($LASTEXITCODE -ne 0) { throw "CMake configure failed ($LASTEXITCODE)." }
 & cmake --build $buildRoot --config $Configuration
 if ($LASTEXITCODE -ne 0) { throw "CMake build failed ($LASTEXITCODE)." }

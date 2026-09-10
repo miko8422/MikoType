@@ -101,3 +101,4 @@ def test_native_packaging_has_no_broad_deletes_or_demo_dependency():
     assert "repository: ValveSoftware/openvr" in workflow
     assert "41bc3825fd35b04047610c86fee26fb33b017b29" in workflow
     assert "contents: read" in workflow
+    assert "runs-on: windows-2022" in workflow

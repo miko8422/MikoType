@@ -60,6 +60,8 @@ Requirements: Windows x64, SteamVR, a configured headset, Visual Studio 2022
 **Desktop development with C++**, CMake 3.21+, and the official
 [Valve OpenVR SDK v2.15.6](https://github.com/ValveSoftware/openvr/releases/tag/v2.15.6).
 CI pins that release to commit `41bc3825fd35b04047610c86fee26fb33b017b29`.
+CI also pins the `windows-2022` runner, rather than a moving `windows-latest`
+image that may no longer include the documented Visual Studio 2022 toolchain.
 Python/uv/conda do not replace these native C++ build prerequisites.
 
 From the repository root:
