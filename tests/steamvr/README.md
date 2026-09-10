@@ -23,3 +23,11 @@ Hardware acceptance is still manual: install `integrations/steamvr` on Windows,
 observe actual Home/Pimax visibility and alignment, stop capture/bridge, change
 model and confirm stale display is cleared. Attach `/api/steamvr/diagnostics`
 after explicitly collecting logs and recording what was visible in the headset.
+
+## Verification record — 2026-09-10 / 0.1.0.dev4
+
+The complete hardware-free local suite passed **631 tests** (2 hardware/soak
+tests deselected). Production native code at `e0f3fe2` compiled and packaged
+successfully on Windows x64 with the pinned official OpenVR SDK:
+[Windows build and downloadable artifact](https://github.com/miko8422/MikoType/actions/runs/34479613963).
+This proves the DLL/bridge build, not SteamVR Home/Pimax headset visibility.

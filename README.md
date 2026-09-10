@@ -321,11 +321,17 @@ No additional web port is required.
 2. On `/steamvr`, download the current user keyboard's **driver assets** and
    the **session bridge token**. The token is a local credential: keep it private,
    do not commit/share it, and download a new one after restarting MikoType.
-3. Follow the integration README to build/install the `mikotypekeyboard` driver
-   using Windows x64, Visual Studio Desktop C++, CMake and the
-   [OpenVR SDK](https://github.com/ValveSoftware/openvr/releases/tag/v2.15.6).
-   Start SteamVR/Home with your normal Pimax setup, then start the bridge with
-   the exact service URL and token file. No proxy/VPN/Pimax setting is modified.
+3. Prefer the `mikotype-steamvr-windows-x64` artifact from a successful
+   [Windows build](https://github.com/miko8422/MikoType/actions/workflows/steamvr-windows.yml)
+   matching this native code version. Following the integration README, close
+   SteamVR, use `scripts/update-assets.ps1` to replace its seed geometry with
+   your exported map, then register the `mikotypekeyboard` driver. Keep the
+   extracted folder at that path. This route needs no local C++ build setup.
+   Visual Studio Desktop C++, CMake and the
+   [OpenVR SDK](https://github.com/ValveSoftware/openvr/releases/tag/v2.15.6)
+   remain the source-build fallback. Start SteamVR/Home with your normal Pimax
+   setup, then start the bridge with the exact service URL and token file.
+   No proxy/VPN/Pimax setting is modified.
 4. Set the keyboard position/rotation in `/steamvr`, then explicitly confirm
    the position and enable display. Values are metres in SteamVR standing space;
    pitch `-90°` lays the exported keyboard on a horizontal desk. Adjust while
@@ -384,10 +390,10 @@ a remote video service.
 
 The local browser and same-host Windows VR consumer use:
 
-- `GET /api/state` or the current diagnostic `WS /ws/state` for latest
-  `SceneState 0.2`. A future VR consumer must enforce its own TTL from
-  `emitted_at_ns` and clear state on disconnect, stale data, or revision/schema
-  mismatch; this endpoint does not yet send an explicit stale event.
+- `GET /api/state` or diagnostic `WS /ws/state` for `SceneState 0.2`.
+  Consumers must clear on disconnect/stale or revision mismatch. The native
+  bridge uses the dedicated revision/TTL-gated binary route below, not these
+  debug WebSockets.
 - `GET /api/layout` for the active physical-key inventory.
 - `GET /api/model/manifest` and `GET /api/model/keyboard.glb` for the adaptive
   3D keyboard.

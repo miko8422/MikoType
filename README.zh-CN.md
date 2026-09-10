@@ -273,19 +273,63 @@ Setup 会使用现有布局的键位清单和校准顺序，允许用户修正�
 而不是历史 `demo/steamvr_home_hybrid` 静态烟测服务。按前面的命令启动 Windows
 主服务后，打开**实际端口上的 `/steamvr`**；不需要另开 WebUI 端口。
 
+### 优先使用 Windows 预编译包
+
+只有与你当前代码版本对应的 **SteamVR Windows native build** 工作流成功后，
+才可从 [GitHub Actions](https://github.com/miko8422/MikoType/actions/workflows/steamvr-windows.yml)
+的该次运行下载 `mikotype-steamvr-windows-x64` artifact。没有对应的成功产物时，
+请等待构建完成或使用下方源码构建方式；不能把失败的运行当作可用安装包。
+使用预编译包不需要在本机安装 Visual Studio、CMake 或 OpenVR SDK，Python
+主服务仍按前文使用 uv 或 Conda 安装。
+
 1. 完成摄像头选择和键盘校准；应用键盘包后重启主服务。
-2. 在 `/steamvr` 下载当前用户键盘的**驱动模型资产**和**本次会话凭证**。
-   凭证仅用于本机 bridge 鉴权，不要提交或分享；主服务重启后要重新下载。
-3. 按接入目录 README，在 Windows x64 使用 Visual Studio Desktop C++、CMake
-   和 [OpenVR SDK](https://github.com/ValveSoftware/openvr/releases/tag/v2.15.6)
-   编译、安装 `mikotypekeyboard` 驱动。按平常的 Pimax 流程打开 SteamVR/Home，
-   再用主服务的准确 URL 和凭证文件启动 bridge。不会修改 VPN、代理或 Pimax 设置。
-4. 在 WebUI 设置键盘的位置、旋转，然后明确确认位置并启用显示。位置单位是
+2. 将预编译 artifact 解压到准备长期保留的目录，确认其下同时有 `dist/`、
+   `scripts/` 和 `README.md`。它附带的是示例几何，不能直接替代你的校准键盘。
+3. 在当前主服务的 `/steamvr` 下载**当前键盘资源**和 **Bridge 凭证**。
+   将资源 ZIP 解压到一个空目录；凭证仅用于本机 bridge 鉴权，不要提交或分享，
+   主服务重启后要重新下载。
+4. **先关闭 SteamVR**，再在预编译包解压目录内打开 PowerShell，更新键盘资源并
+   注册驱动。将下面的资源目录和 SteamVR 安装路径替换为本机实际路径：
+
+```powershell
+.\scripts\update-assets.ps1 -AssetDirectory "C:\MikoType\my-openvr-assets"
+.\scripts\install.ps1 -SteamVrRoot "C:\Program Files (x86)\Steam\steamapps\common\SteamVR"
+```
+
+驱动注册指向这个目录中的文件，并不会把它们搬到另一个安装位置；注册后不要
+删除或移动整个解压目录。卸载脚本只移除对应的驱动注册，保留文件。
+
+5. 按平常的 Pimax 流程打开 SteamVR/Home；如有提示，在 Manage Add-ons 中启用
+   `mikotypekeyboard`。在同一 PowerShell 目录启动 bridge，粘贴主服务打印的
+   **完整准确地址**，不要猜测 8765 或固定使用 9000；凭证路径也替换为实际文件：
+
+```powershell
+$mikoServiceUrl = Read-Host "粘贴 OPEN THIS EXACT URL 后的完整地址"
+.\scripts\run.ps1 -ServiceUrl $mikoServiceUrl -TokenFile "C:\MikoType\mikotype-steamvr-token.txt"
+```
+
+6. 在 WebUI 设置键盘的位置、旋转，然后明确确认位置并启用显示。位置单位是
    SteamVR standing 坐标系下的米；默认 pitch `-90°` 将键盘平放。需要戴头显
    手动对齐。这些参数只作用于本次运行，重启默认关闭并要求重新确认。
-5. 观察连接、Home 进程、帧新鲜度和模型版本；写下头显里的实际现象，点击
+7. 观察连接、Home 进程、帧新鲜度和模型版本；写下头显里的实际现象，点击
    **收集 SteamVR 日志**，然后**导出诊断**。JSON 包含有上限的 bridge 日志和
    已收集的 SteamVR 日志末尾，不包含摄像头图片或凭证。分享前请检查隐私信息。
+
+这些脚本不会替你终止 Pimax 或修改 VPN、代理设置；bridge 终端中按 Ctrl+C
+只会停止 bridge。以后布局或模型变化时，重新导出当前资源，关闭 SteamVR 后
+运行 `update-assets.ps1`，再重启 SteamVR 和 bridge 即可，无需重新编译。
+服务与驱动模型的 SHA-256 不匹配时会主动隐藏输出，避免显示错误键盘。
+
+### 备选：本机源码构建
+
+没有匹配的成功预编译产物，或需要修改原生代码时，请按
+[`integrations/steamvr/README.md`](integrations/steamvr/README.md) 的
+**Build locally instead** 章节操作。此方式需要 Windows x64、Visual Studio 2022
+Desktop development with C++、CMake 和
+[OpenVR SDK v2.15.6](https://github.com/ValveSoftware/openvr/releases/tag/v2.15.6)。
+uv / Conda 只管理 Python 环境，不能替代这些 C++ 构建工具。
+
+### 显示与验收边界
 
 这里通过 GenericTracker 提交真正的 3D 键盘模型，同时用**二维表面 Overlay**
 叠加实时指尖 Bubble 和键位高亮。细键位轮廓也可用于 Home 不绘制 GenericTracker
@@ -356,6 +400,7 @@ tests/              隔离的自动化测试
 demo/               实验代码，生产环境不会导入
 dispose/            可恢复的退役内容，不进入运行时
 windows_vr/         同机 Windows VR 集成边界
+integrations/steamvr/ 独立编译的生产 Windows 驱动与实时 bridge
 ```
 
 此前讨论过的实验功能继续隔离在 `demo/`。`dispose/` 存放退役框架和过期副本，
